@@ -188,3 +188,26 @@ command :combine do |c|
     end
   end
 end
+
+command :prepare_wsd do |c|
+  c.syntax 'factor prepare_wsd LEMMAS POS'
+  c.description = 'Prepare a context file for word sense disambiguation.'
+  c.option '--before N', Integer, 'Number of preceding sentences to include in the context'
+  c.option '--after N',  Integer, 'Number of trailing sentences to include in the context'
+  c.option '--output FILE', 'Where to put the context file'
+  c.action do |args, options|
+    options.default :before => 1, :after => 1
+    pos_file = File.open(args[1], 'r') 
+    output = File.open(options.output, 'w')
+    File.foreach(args.first) do |line|
+      pos_tags = pos_file.gets.chomp.split(' ')
+      id = 'w0'
+      ctrl = '1'
+      line.chomp.split(' ').each do |form|
+        output << [form, pos_tags.shift, id.succ!, ctrl].join('#') + ' '
+      end
+      # End of sentence
+      output << "\n"
+    end
+  end
+end
