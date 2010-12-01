@@ -190,7 +190,7 @@ command :combine do |c|
 end
 
 command :prepare_wsd do |c|
-  c.syntax 'factor prepare_wsd LEMMAS POS'
+  c.syntax = 'factor prepare_wsd LEMMAS POS'
   c.description = 'Prepare a context file for word sense disambiguation.'
   c.option '--before N', Integer, 'Number of preceding sentences to include in the context'
   c.option '--after N',  Integer, 'Number of trailing sentences to include in the context'

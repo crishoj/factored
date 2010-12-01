@@ -22,12 +22,12 @@ CORPUS_DIR 	= corpus/$(PAIR)
 MODEL_DIR	= models/$(PAIR)
 PREFIX 		= $(CORPUS_DIR)/europarl.factored
 LM_PREFIX 	= `pwd`/$(PREFIX).train.$(L2)
-MOSES 		= /usr/local/bin/moses
 LM_OPT 		= --lm 0:3:$(LM_PREFIX).lm 
 POS_LM_OPT 	= --lm 1:3:$(LM_PREFIX).pos.lm 
 DEPREL_LM_OPT 	= --lm 2:3:$(LM_PREFIX).deprel.lm 
 CLUSTER_LM_OPT 	= --lm 3:3:$(LM_PREFIX).cluster.lm 
-MOSES_OPTS 	= --corpus $(PREFIX).train --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 $(LM_OPT) --alignment-factors 0-0
+MOSES 		= /usr/local/bin/moses
+MOSES_OPTS 	= --corpus `pwd`/$(PREFIX).train --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 $(LM_OPT) --alignment-factors 0-0
 MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert 
 MERT_ARGS 	= $(PREFIX).dev.$(L1) $(PREFIX).dev.$(L2) $(MOSES) 
 
