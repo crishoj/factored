@@ -30,19 +30,24 @@ MOSES 		= /usr/local/bin/moses
 MOSES_OPTS 	= --corpus `pwd`/$(PREFIX).train --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 $(LM_OPT) --alignment-factors 0-0
 MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert 
 MERT_ARGS 	= $(PREFIX).dev.$(L1) $(PREFIX).dev.$(L2) $(MOSES) 
+CORPUS_MAKEFILE = $(CORPUS_DIR)/Makefile
 
 corpora : l1_corpus l2_corpus
 
-l1_corpus : 
+l1_corpus : $(CORPUS_MAKEFILE)
 	cd $(CORPUS_DIR) ; L=$(L1) make
 
-l2_corpus : 
+l2_corpus : $(CORPUS_MAKEFILE)
 	cd $(CORPUS_DIR) ; L=$(L2) make
+
+$(CORPUS_MAKEFILE) : $(CORPUS_DIR)
+	rm -f $@
+	cd $(CORPUS_DIR) && ln -s ../Makefile 
 
 baseline : unfactored_model
 
 %_model : $(MODEL_DIR)/%/model/moses.ini
-	echo $< # Bogus.. rule doesn't seem to work without a command??
+	echo $< # Bogus.. rule doesn't seem to work without a command?
 
 .PHONY: corpora l1_corpus l2_corpus baseline unfactored_model
 
@@ -71,8 +76,8 @@ $(MODEL_DIR)/gen_cluster-deprel/model/moses.ini : corpora
 
 # MERT
 
-$(OPTIMIZED_UNFACTORED_MODEL) : $(UNFACTORED_MODEL) corpora 
-	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_DIR)/unfactored.optimized $(MERT_ARGS) $(MODEL_DIR)/unfactored/model/moses.ini
+#$(OPTIMIZED_UNFACTORED_MODEL) : $(UNFACTORED_MODEL) corpora 
+#	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_DIR)/unfactored.optimized $(MERT_ARGS) $(MODEL_DIR)/unfactored/model/moses.ini
 
 $(MODEL_DIR)/%/model.optimized/moses.ini : $(MODEL_DIR)/%/model/moses.ini
 	echo `dirname $(input)

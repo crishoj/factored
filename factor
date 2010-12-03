@@ -146,45 +146,52 @@ command :split do |c|
 end
 
 command :combine do |c|
-  c.syntax = 'factor combine CORPUS [options]'
-  c.description = 'Combine a corpus with various factors into a factored corpus'
-  c.option '--conll FILE', 'CoNLL file from which to get e.g. word form, POS and dependency label'
-  c.option '--clusters FILE', 'PATH file from wcluster from which to read brown clusters'
+  c.syntax = 'factor combine CORPUS FACTOR1, FACTOR2, ... [options]'
+  c.description = 'Combine various translation factors into a factored corpus'
   c.option '--output FILE', 'Where to put the factored corpus'
   c.action do |args, options|
-    corpus = args.first
-    say "Using corpus #{corpus}"
-    if options.clusters
-      say "Reading clusters from #{options.clusters}"
-      clusters = {}
-      clusters.default = '_'
-      File.foreach(options.clusters) do |line|
-        line.chomp!
-        cluster, form, tmp = line.split("\t")
-        clusters[form] = cluster
-      end
-    else
-      clusters = false
+    corpus = arg.shift
+    factor_inputs = args.collect do |filename| 
+      say "Reading factors from #{filename}"
+      File.open(filename, 'r')
     end
-    say "Reading POS and DEPREL from CONLL file #{options.conll}"
-    conll = File.open(options.conll, 'r') if options.conll
     say "Writing factored corpus to #{options.output}"
     output = File.open(options.output, 'w')
     File.foreach(corpus) do |line|
+      factors = factor_inputs.collect { |f| f.gets.chomp.split(' ') }
       line.chomp.split(' ').each do |form|
-        output << form
-        if options.conll
-          tok = Conll::Token.parse(conll.gets.chomp)
-          output << "|#{tok.pos}|#{tok.deprel}"
-        end
-        if clusters 
-          output << "|#{clusters[tok.form]}" 
-        end
-        output << " "
+        token_factors = [form] + factors.collect { |f| f.shift }
+        output << token_factors.join('|') + ' '
       end
       # End of sentence
-      conll.gets if options.conll
       output << "\n"
+    end
+  end
+end
+
+command :conll_extract do |c|
+  c.syntax = 'factor conll_extract CONLL [options]'
+  c.description = 'Extract translation factors (POS and DEPREL) from a CONLL parse'
+  c.option '--output-pos FILE', 'Where to put the POS tags'
+  c.option '--output-deprel FILE', 'Where to put the DEPRELs'
+  c.action do |args, options|
+    conll = args.first
+    say "Reading CONLL file #{options.conll}"
+    say "Writing factored corpus to #{options.output}"
+    pos_output = File.open(options.output_pos, 'w')
+    deprel_output = File.open(options.output_deprel, 'w')
+    File.foreach(conll) do |line|
+      line.chomp!
+      if line.empty?
+        pos_output << "\n"
+        deprel_output << "\n"
+      else
+        tok = Conll::Token.parse(line)
+        pos_output << tok.pos
+        pos_output << ' '
+        deprel_output << tok.deprel
+        deprel_output << ' '
+      end
     end
   end
 end
