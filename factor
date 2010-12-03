@@ -176,8 +176,9 @@ command :conll_extract do |c|
   c.option '--output-deprel FILE', 'Where to put the DEPRELs'
   c.action do |args, options|
     conll = args.first
-    say "Reading CONLL file #{options.conll}"
-    say "Writing factored corpus to #{options.output}"
+    say "Reading CONLL file #{conll}"
+    say "Writing POS factors to #{options.output_pos}"
+    say "Writing DEPREL factors to #{options.output_deprel}"
     pos_output = File.open(options.output_pos, 'w')
     deprel_output = File.open(options.output_deprel, 'w')
     File.foreach(conll) do |line|
@@ -196,6 +197,29 @@ command :conll_extract do |c|
   end
 end
 
+command :cluster_extract do |c|
+  c.syntax = 'factor cluster_extract CORPUS PATHS [options]'
+  c.description = "Create a factor file with word clusters"
+  c.option '--output FILE', 'Where to put the factor file'
+  c.action do |args, options|
+    corpus_file = args.first
+    cluster_file = args.last
+    say "Reading clusters from #{cluster_file}"
+    clusters = {}
+    clusters.default = '_'
+    File.foreach(cluster_file) do |line|
+      line.chomp!
+      cluster, form, tmp = line.split("\t")
+      clusters[form] = cluster
+    end
+    say "Writing output to #{options.output}"
+    output = File.open(options.output, 'w')
+    File.foreach(corpus_file) do |line|
+      output << line.chomp.split(' ').collect { |form| clusters[form] }.join(' ') + "\n"
+    end
+  end
+end
+
 command :prepare_wsd do |c|
   c.syntax = 'factor prepare_wsd LEMMAS POS'
   c.description = 'Prepare a context file for word sense disambiguation.'
@@ -206,15 +230,64 @@ command :prepare_wsd do |c|
     options.default :before => 1, :after => 1
     pos_file = File.open(args[1], 'r') 
     output = File.open(options.output, 'w')
+    sent_num = 0
     File.foreach(args.first) do |line|
+      break if line.chomp.empty?
+      sent_num += 1
       pos_tags = pos_file.gets.chomp.split(' ')
-      id = 'w0'
-      ctrl = '1'
-      line.chomp.split(' ').each do |form|
-        output << [form, pos_tags.shift, id.succ!, ctrl].join('#') + ' '
+      id = 0
+      ctrl = 1
+      output << "ctx_#{sent_num}\n"
+      line.chomp.split(' ').each do |lemma|
+        id = id.succ
+        pos = pos_tags.shift
+        wsd_pos = case pos
+                  when /^NN/, 'N'
+                    'n' 
+                  when /^VB/, 'V'
+                    'v'
+                  when /^JJ/
+                    'a'
+                  when /^RB/
+                    'r'
+                  when /^[CDEFILMPSTUWX\W]/, 'RP', 'A', 'RG'
+                    next
+                  else raise "Unhandled POS #{pos} (for lemma: #{lemma})"
+                  end
+        output << [lemma, wsd_pos, id, ctrl].join('#') + ' '
       end
       # End of sentence
       output << "\n"
+    end
+  end
+end
+
+command :wsd_extract do |c|
+  c.syntax = 'factor wsd_extract CORPUS SENSES [options]'
+  c.description = "Create a factor file with word word senses"
+  c.option '--output FILE', 'Where to put the factor file'
+  c.action do |args, options|
+    corpus_file = args.first
+    sense_file = args.last
+    say "Reading senses from #{sense_file}"
+    sense_file = File.open(corpus_file)
+    say "Writing output to #{options.output}"
+    output = File.open(options.output, 'w')
+    cur_ctx = "ctx_0"
+    sense_ctx, id, sense, _, _ = sense_file.gets.chomp.split(/\s+/)
+    File.foreach(corpus) do |line|
+      cur_ctx.succ!
+      cur_id = 0
+      output << line.chomp.split(' ').collect { |form| 
+        cur_id += 1
+        if cur_ctx == ctx and cur_id == id 
+          ret = sense
+          sense_ctx, id, sense, _, _ = sense_file.gets.chomp.split(/\s+/)
+        else
+          ret = '_'
+        end 
+        ret
+      }.join(' ') + "\n"
     end
   end
 end
