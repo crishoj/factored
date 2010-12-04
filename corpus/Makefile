@@ -41,7 +41,9 @@ LEMMAGEN_OPTS = -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin
 SRILM_OPTIONS = -order 3 -interpolate -kndiscount -unk 
 SRILM_OPTIONS2 = -order 3 -interpolate 
 
-.DELETE_ON_ERROR :
+.DELETE_ON_ERROR : # don't leave half-baked files around
+
+.SECONDARY : # keep "intermediate" files (for reuse)
 
 .PHONY : lms clean-lms factored 
 

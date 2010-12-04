@@ -237,8 +237,7 @@ command :prepare_wsd do |c|
       pos_tags = pos_file.gets.chomp.split(' ')
       id = 0
       ctrl = 1
-      output << "ctx_#{sent_num}\n"
-      line.chomp.split(' ').each do |lemma|
+      for_wsd = line.chomp.split(' ').collect { |lemma|
         id = id.succ
         pos = pos_tags.shift
         wsd_pos = case pos
@@ -254,10 +253,13 @@ command :prepare_wsd do |c|
                     next
                   else raise "Unhandled POS #{pos} (for lemma: #{lemma})"
                   end
-        output << [lemma, wsd_pos, id, ctrl].join('#') + ' '
+        [lemma, wsd_pos, id, ctrl].join('#')
+      }.compact
+      unless for_wsd.empty?
+        output << "ctx_#{sent_num}\n"
+        output << for_wsd.join(' ')
+        output << "\n"
       end
-      # End of sentence
-      output << "\n"
     end
   end
 end
@@ -284,7 +286,8 @@ command :wsd_extract do |c|
           ret = sense
           sense_ctx, id, sense, _, _ = sense_file.gets.chomp.split(/\s+/)
         else
-          ret = '_'
+          # no word sense .. use form instead
+          ret = form
         end 
         ret
       }.join(' ') + "\n"
