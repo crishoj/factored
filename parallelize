@@ -17,7 +17,7 @@ command :stdout do |c|
     input_file = nil
     input_idx = nil
     args.each_with_index do |arg, i| 
-      if /^{.+}$/.match(arg)
+      if /^\{.+\}$/.match(arg)
         input_file, input_idx = arg, i 
         break
       end
