@@ -70,7 +70,7 @@ $(CLUSTER_PATHS) : $(CORPUS)
 	$(FACTOR_TOOL) --trace prepare_wsd --output $@ --before 0 --after 0 $^
 
 %.wsd.output : %.wsd.context
-	ukb_wsd -D ../../wsd/$(L)/dict.txt -K ../../wsd/$(L)/rels.bin --ppr $< > $@
+	../../parallelize --output $@ --chunks=16 --granularity=2 -- ukb_wsd -D ../../wsd/$(L)/dict.txt -K ../../wsd/$(L)/rels.bin --ppr {$<}
 
 %.wsd : %.wsd.output
 	$(FACTOR_TOOL) --trace wsd_extract $< --output $@
