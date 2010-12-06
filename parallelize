@@ -84,7 +84,10 @@ command :stdout do |c|
       end
       $? == 0
     end
-    
+
+    say "[cleanup] Removing chunk files"
+    File.delete chunk_files
+
     unless all_good
       say "[fail] Some jobs completed with non-zero exit status"
       exit(1)
@@ -93,5 +96,8 @@ command :stdout do |c|
     output_files = chunk_files.collect { |f| f + ".out" }
     say "[recombine] #{output_files.join(' ')} => #{options.output}"
     exec "cat #{output_files.join(' ')} > #{options.output}"
+
+    say "[cleanup] Removing chunk output files"
+    File.delete output_files
   end
 end
