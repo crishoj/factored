@@ -87,7 +87,7 @@ command :stdout do |c|
     
     unless all_good
       say "[fail] Some jobs completed with non-zero exit status"
-      System.exit(1)
+      exit(1)
     end
     
     output_files = chunk_files.collect { |f| f + ".out" }

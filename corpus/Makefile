@@ -13,39 +13,44 @@
 
 # Arguments from environment
 L		?= da
+PREFIX 		?= europarl.cleaned
+DEV_SENTS	?= 2000
+TEST_SENTS	?= 10000
 
 # Derived variables
-PWD = $(shell pwd)
-PAIR = $(shell basename $(PWD))
-PREFIX = europarl.cleaned
-CORPUS = $(PREFIX).$(L)
-CLUSTER_PATHS = clusters/$(L)/$(PREFIX)-c1000-p1.out/paths
-DEPPARSE = ../../../stacked_dep/data/$(L)/europarl-$(PAIR)/mst2.out.conll
+PWD 		= $(shell pwd)
+PAIR 		= $(shell basename $(PWD))
+CORPUS 		= $(PREFIX).$(L)
+CLUSTER_PATHS 	= clusters/$(L)/$(PREFIX)-c1000-p1.out/paths
+DEPPARSE 	= ../../../stacked_dep/data/$(L)/europarl-$(PAIR)/mst2.out.conll
 
-LM	    = train/$(CORPUS).lm
-POS_LM	    = train/$(CORPUS).pos.lm
-DEPREL_LM   = train/$(CORPUS).deprel.lm
-CLUSTER_LM  = train/$(CORPUS).cluster.lm
-WSD_LM	    = train/$(CORPUS).wsd.lm
+LM	    	= train/$(CORPUS).lm
+LEMMA_LM    	= train/$(CORPUS).lemma.lm
+POS_LM	    	= train/$(CORPUS).pos.lm
+DEPREL_LM  	= train/$(CORPUS).deprel.lm
+CLUSTER_LM  	= train/$(CORPUS).cluster.lm
+WSD_LM	    	= train/$(CORPUS).wsd.lm
 
-LMS = $(LM) $(POS_LM) $(CLUSTER_LM) $(DEPREL_LM) $(WSD_LM)
+LMS 		= $(LM) $(LEMMA_LM) $(POS_LM) $(CLUSTER_LM) $(DEPREL_LM) $(WSD_LM)
 
-FACTOR_TOOL = ../../factor
+FACTOR_TOOL 	= ../../factor
 
-CSTLEMMA = /opt/cstlemma/cstlemma
-CSTLEMMA_OPTS = -t- -b '$$w' -B '$$w' -c '$$b1[[$$b?]~1$$B]$$s' -f /opt/cstlemma/da/flexrules -d /opt/cstlemma/da/dict -eU
+CSTLEMMA 	= /opt/cstlemma/cstlemma
+CSTLEMMA_OPTS 	= -t- -b '$$w' -B '$$w' -c '$$b1[[$$b?]~1$$B]$$s' -f /opt/cstlemma/da/flexrules -d /opt/cstlemma/da/dict -eU
 
-LEMMAGEN = /nyusers/anders/stemmers/v2/lemmagen/binary/linux/lemmatize
-LEMMAGEN_OPTS = -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin
+LEMMAGEN 	= /nyusers/anders/stemmers/v2/lemmagen/binary/linux/lemmatize
+LEMMAGEN_OPTS 	= -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin
 
-SRILM_OPTIONS = -order 3 -interpolate -kndiscount -unk 
-SRILM_OPTIONS2 = -order 3 -interpolate 
+SRILM_OPTIONS 	= -order 3 -interpolate -kndiscount -unk 
+SRILM_OPTIONS2 	= -order 3 -interpolate 
+
+SPLIT_CMD	= ../../split.sh $(DEV_SENTS) $(TEST_SENTS)
 
 .DELETE_ON_ERROR : # don't leave half-baked files around
 
 .SECONDARY : # keep "intermediate" files (for reuse)
 
-.PHONY : lms clean-lms factored 
+.PHONY : lms clean-lms factored unfactored
 
 %.da.lemma : %.da 
 	$(CSTLEMMA) $(CSTLEMMA_OPTS) -i $< -o $@
@@ -73,7 +78,7 @@ $(CLUSTER_PATHS) : $(CORPUS)
 	../../parallelize --output $@ --chunks=16 --granularity=2 -- ukb_wsd -D ../../wsd/$(L)/dict.txt -K ../../wsd/$(L)/rels.bin --ppr {$<}
 
 %.wsd : %.wsd.output
-	$(FACTOR_TOOL) --trace wsd_extract $< --output $@
+	$(FACTOR_TOOL) --trace wsd_extract $(CORPUS) $< --output $@
 
 $(LM) : train/$(CORPUS)
 	ngram-count $(SRILM_OPTIONS) -text $< -lm $@
@@ -82,21 +87,24 @@ $(LM) : train/$(CORPUS)
 	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
 
 train/% : %
-	../../split.sh $<
+	$(SPLIT_CMD) $<
 
 dev/% : %
-	../../split.sh $<
+	$(SPLIT_CMD) $<
 
 test/% : %
-	../../split.sh $<
+	$(SPLIT_CMD) $<
 
 lms : $(LMS)
 
 clean-lms : 
 	rm -rf $(LMS)
 
-factored : $(PREFIX).factored.$(L)
+factored : $(PREFIX).factored.$(L) train/$(PREFIX).factored.$(L)
+unfactored : train/$(PREFIX).$(L)
 
 $(PREFIX).factored.$(L) : $(CORPUS).factored
 	rm -f $@
 	ln -s $< $@
+
+all : lms factored unfactored 

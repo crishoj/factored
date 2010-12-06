@@ -1,9 +1,11 @@
 #!/bin/sh
 set -ue
-CORPUS=$1
+DEV_COUNT=$1
+TEST_COUNT=$2
+CORPUS=$3
 mkdir -p dev
 mkdir -p test
 mkdir -p train
-cat $CORPUS | tail -n+1     | head -n 2000  > dev/$CORPUS
-cat $CORPUS | tail -n+2001  | head -n 10000 > test/$CORPUS
-cat $CORPUS | tail -n+12001                 > train/$CORPUS
+cat $CORPUS | tail -n+1 | head -n $DEV_COUNT > dev/$CORPUS
+cat $CORPUS | tail -n+$((DEV_COUNT + 1)) | head -n $TEST_COUNT > test/$CORPUS
+cat $CORPUS | tail -n+$((DEV_COUNT + TEST_COUNT + 1)) > train/$CORPUS

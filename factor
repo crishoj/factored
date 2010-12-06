@@ -150,7 +150,7 @@ command :combine do |c|
   c.description = 'Combine various translation factors into a factored corpus'
   c.option '--output FILE', 'Where to put the factored corpus'
   c.action do |args, options|
-    corpus = arg.shift
+    corpus = args.shift
     factor_inputs = args.collect do |filename| 
       say "Reading factors from #{filename}"
       File.open(filename, 'r')
@@ -269,24 +269,29 @@ command :wsd_extract do |c|
   c.description = "Create a factor file with word word senses"
   c.option '--output FILE', 'Where to put the factor file'
   c.action do |args, options|
-    corpus_file = args.first
-    sense_file = args.last
+    corpus_file = args[0]
+    sense_file = args[1]
+    say "Using corpus #{corpus_file}"
     say "Reading senses from #{sense_file}"
-    sense_file = File.open(corpus_file)
+    sense_file = File.open(sense_file)
     say "Writing output to #{options.output}"
     output = File.open(options.output, 'w')
     cur_ctx = "ctx_0"
-    sense_ctx, id, sense, _, _ = sense_file.gets.chomp.split(/\s+/)
-    File.foreach(corpus) do |line|
+    sense_file.gets # skip comment
+    sense_ctx, id, sense = sense_file.gets.chomp.split(/\s+/)
+    File.foreach(corpus_file) do |line|
       cur_ctx.succ!
-      cur_id = 0
+      cur_id = "0"
       output << line.chomp.split(' ').collect { |form| 
-        cur_id += 1
-        if cur_ctx == ctx and cur_id == id 
+        cur_id.succ!
+        #say "id: #{id}, cur_id: #{cur_id}, sense_ctx: #{sense_ctx}, cur_ctx: #{cur_ctx}"
+        if cur_ctx == sense_ctx and cur_id == id 
+          #say " - using sense: #{sense}"
           ret = sense
-          sense_ctx, id, sense, _, _ = sense_file.gets.chomp.split(/\s+/)
+          sense_ctx, id, sense = sense_file.gets.chomp.split(/\s+/)
         else
           # no word sense .. use form instead
+          #say " - using form: #{form}"
           ret = form
         end 
         ret

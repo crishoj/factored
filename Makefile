@@ -15,72 +15,112 @@
 # Arguments from environment
 L1		?= da
 L2		?= en
+PREFIX		?= europarl.cleaned
+LM_PREFIX	?= $(PREFIX) # for using a language model from a differentcorpus
 
 # Derived variables
 PAIR 		= $(L1)-$(L2)
 CORPUS_DIR 	= corpus/$(PAIR)
 MODEL_DIR	= models/$(PAIR)
-PREFIX 		= $(CORPUS_DIR)/europarl.factored
-LM_PREFIX 	= `pwd`/$(PREFIX).train.$(L2)
-LM_OPT 		= --lm 0:3:$(LM_PREFIX).lm 
-POS_LM_OPT 	= --lm 1:3:$(LM_PREFIX).pos.lm 
-DEPREL_LM_OPT 	= --lm 2:3:$(LM_PREFIX).deprel.lm 
-CLUSTER_LM_OPT 	= --lm 3:3:$(LM_PREFIX).cluster.lm 
-MOSES 		= /usr/local/bin/moses
-MOSES_OPTS 	= --corpus `pwd`/$(PREFIX).train --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 $(LM_OPT) --alignment-factors 0-0
-MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert 
-MERT_ARGS 	= $(PREFIX).dev.$(L1) $(PREFIX).dev.$(L2) $(MOSES) 
+MODEL_BASE	= $(MODEL_DIR)/$(PREFIX)
 CORPUS_MAKEFILE = $(CORPUS_DIR)/Makefile
+TRAIN_CORPUS	= $(CORPUS_DIR)/train/$(PREFIX).factored
+DEV_CORPUS 	= $(CORPUS_DIR)/dev/$(PREFIX).factored
+TEST_CORPUS	= $(CORPUS_DIR)/test/$(PREFIX).factored
+# Factors
+FORM		= 0
+LEMMA		= 1
+POS		= 2
+CLUSTER		= 3
+DEPREL		= 4
+WSD		= 5
+# Moses
+FACTOR_MAX	= 5
+LM_BASE 	= `pwd`/$(CORPUS_DIR)/train/$(LM_PREFIX).$(L2)
+LM_OPT		= \
+ --lm $(FORM):3:$(LM_BASE).lm \
+ --lm $(LEMMA):3:$(LM_BASE).lemma.lm \
+ --lm $(POS):3:$(LM_BASE).pos.lm \
+ --lm $(CLUSTER):3:$(LM_BASE).cluster.lm \
+ --lm $(DEPREL):3:$(LM_BASE).deprel.lm \
+ --lm $(WSD):3:$(LM_BASE).wsd.lm 
+MOSES 		= /usr/local/bin/moses
+MOSES_OPTS 	= --corpus `pwd`/$(TRAIN_CORPUS) --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 $(LM_OPT) --alignment-factors 0-0 --input-factor-max $(FACTOR_MAX)
+# Mert 
+MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert 
+MERT_ARGS 	= $(DEV_CORPUS).$(L1) $(DEV_CORPUS).$(L2) $(MOSES)
 
-corpora : l1_corpus l2_corpus
+.DELETE_ON_ERROR : # don't leave half-baked files around
+
+.SECONDARY : # keep "intermediate" files (for reuse)
+
+.PHONY: corpora l1_corpus l2_corpus baseline models
+
+corpora : # l1_corpus l2_corpus
 
 l1_corpus : $(CORPUS_MAKEFILE)
-	cd $(CORPUS_DIR) ; L=$(L1) make
+	cd $(CORPUS_DIR) ; L=$(L1) make factored lms
 
 l2_corpus : $(CORPUS_MAKEFILE)
-	cd $(CORPUS_DIR) ; L=$(L2) make
+	cd $(CORPUS_DIR) ; L=$(L2) make factored lms
 
 $(CORPUS_MAKEFILE) : $(CORPUS_DIR)
 	rm -f $@
 	cd $(CORPUS_DIR) && ln -s ../Makefile 
 
-baseline : unfactored_model
+baseline : optimized_unfactored_model
 
-%_model : $(MODEL_DIR)/%/model/moses.ini
-	echo $< # Bogus.. rule doesn't seem to work without a command?
+%_model : $(MODEL_BASE).%/model/moses.ini
+	echo "Made $* model"
 
-.PHONY: corpora l1_corpus l2_corpus baseline unfactored_model
+optimized_%_model : $(MODEL_BASE).%/model.optimized/moses.ini
+	echo "Made optimized $* model"
 
+#
 # Models 
+#
 
-$(MODEL_DIR)/unfactored/model/moses.ini : corpora 
-	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_DIR)/unfactored 
+$(MODEL_BASE).unfactored/model/moses.ini : # corpora -- always remakes when specifying phony dependency here?
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).unfactored --translation-factors $(FORM)-$(FORM) --decoding-steps t0 
 
-$(MODEL_DIR)/gen_cluster/model/moses.ini : corpora
-	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_DIR)/gen_cluster --translation-factors 0-0+3-3 --generation-factors 0-3 --decoding-steps t0,g0,t1 $(POS_LM_OPT) $(CLUSTER_LM_OPT)
+$(MODEL_BASE).lemma/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).lemma --translation-factors $(FORM),$(LEMMA)-$(FORM),$(LEMMA) --decoding-steps t0 
 
-$(MODEL_DIR)/pos/model/moses.ini : corpora
-	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_DIR)/pos --translation-factors 0,1-0,1 --decoding-steps t0 $(POS_LM_OPT)
+$(MODEL_BASE).pos/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).pos --translation-factors $(FORM),$(POS)-$(FORM),$(POS) --decoding-steps t0 
 
-$(MODEL_DIR)/deprel/model/moses.ini : corpora
-	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_DIR)/deprel --translation-factors 0,2-0,2 --decoding-steps t0 $(DEPREL_LM_OPT)
+$(MODEL_BASE).cluster/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).cluster --translation-factors $(FORM),$(CLUSTER)-$(FORM),$(CLUSTER) --decoding-steps t0
 
-$(MODEL_DIR)/cluster/model/moses.ini : corpora
-	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_DIR)/cluster --translation-factors 0,3-0,3 --decoding-steps t0 $(CLUSTER_LM_OPT)
+$(MODEL_BASE).deprel/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).deprel --translation-factors $(FORM),$(DEPREL)-$(FORM),$(DEPREL) --decoding-steps t0 
 
-$(MODEL_DIR)/combined/model/moses.ini : corpora
-	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_DIR)/combined --translation-factors 0,1,2,3-0,1,2,3 --decoding-steps t0 $(POS_LM_OPT) $(DEPREL_LM_OPT) $(CLUSTER_LM_OPT)
+$(MODEL_BASE).wsd/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).wsd --translation-factors $(FORM),$(WSD)-$(FORM),$(WSD) --decoding-steps t0 
 
-$(MODEL_DIR)/gen_cluster-deprel/model/moses.ini : corpora
-	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_DIR)/gen_cluster-deprel --translation-factors 0-0+2,3-2,3 --generation-factors 0-2,3 --decoding-steps t0,g0,t1 $(CLUSTER_LM_OPT) $(DEPREL_LM_OPT)
+$(MODEL_BASE).combined/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).combined --translation-factors $(FORM),$(LEMMA),$(POS),$(CLUSTER),$(DEPREL),$(WSD)-$(FORM),$(LEMMA),$(POS),$(CLUSTER),$(DEPREL),$(WSD) --decoding-steps t0 
+
+$(MODEL_BASE).gen_cluster/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).gen_cluster --translation-factors $(FORM)-$(FORM)+$(CLUSTER)-$(CLUSTER) --generation-factors $(FORM)-$(CLUSTER) --decoding-steps t0,g0,t1 
+
+$(MODEL_BASE).gen_cluster-deprel/model/moses.ini : 
+	train-model.perl $(MOSES_OPTS) --root-dir $(MODEL_BASE).gen_cluster-deprel --translation-factors $(FORM)-$(FORM)+$(DEPREL),$(CLUSTER)-$(DEPREL),$(CLUSTER) --generation-factors $(FORM)-$(DEPREL),$(CLUSTER) --decoding-steps t0,g0,t1 
+
+MODELS = unfactored lemma pos cluster deprel wsd combined gen_cluster gen_cluster-deprel
+UNOPTIMIZED_MODELS = $(addsuffix _model, $(MODELS))
+OPTIMIZED_MODELS = $(addprefix optimized_, $(UNOPTIMIZED_MODELS))
+
+unoptimized_models : $(UNOPTIMIZED_MODELS)
+
+optimized_models : $(OPTIMIZED_MODELS)
+
+models : $(OPTIMIZED_MODELS)
 
 # MERT
 
-#$(OPTIMIZED_UNFACTORED_MODEL) : $(UNFACTORED_MODEL) corpora 
-#	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_DIR)/unfactored.optimized $(MERT_ARGS) $(MODEL_DIR)/unfactored/model/moses.ini
-
-$(MODEL_DIR)/%/model.optimized/moses.ini : $(MODEL_DIR)/%/model/moses.ini
-	echo `dirname $(input)
+$(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.ini
+	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_BASE).$*/model.optimized $(MERT_ARGS) $<
 
 
 
