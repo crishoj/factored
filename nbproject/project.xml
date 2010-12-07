@@ -4,9 +4,7 @@
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/ruby-project/1">
             <name>factored</name>
-            <source-roots>
-                <root id="src.corpus.dir"/>
-            </source-roots>
+            <source-roots/>
             <test-roots/>
         </data>
     </configuration>
