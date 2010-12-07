@@ -14,8 +14,10 @@
 # Arguments from environment
 L1		?= da
 L2		?= en
-PREFIX		?= europarl.cleaned
-LM_PREFIX	?= $(PREFIX) # for using a language model from a differentcorpus
+PREFIX		?= europarl.truncated
+# LM_PREFIX may be used to specify a language model from a different corpus
+#LM_PREFIX	?= $(PREFIX)
+LM_PREFIX	?= europarl.cleaned
 
 # Derived variables
 PAIR 		= $(L1)-$(L2)
@@ -39,23 +41,20 @@ FACTORED_CORPORA = \
 	$(FACTORED_TEST).$(L1)  $(FACTORED_TEST).$(L2)	
 
 # Factors
-FORM		= 0
-LEMMA		= 1
-POS		= 2
-CLUSTER		= 3
-DEPREL		= 4
-WSD		= 5
-# Moses
+form		= 0
+lemma		= 1
+pos		= 2
+cluster		= 3
+deprel		= 4
+wsd		= 5
+FACTORS 	= pos cluster deprel wsd lemma
 FACTOR_MAX	= 5
+# Moses
 LM_BASE 	= $(shell pwd)/$(CORPUS_DIR)/train/$(LM_PREFIX).$(L2)
-LM_OPT		= --lm $(FORM):3:$(LM_BASE).lm 
-LM_OPT_LEMMA	= --lm $(LEMMA):3:$(LM_BASE).lemma.lm 
-LM_OPT_POS	= --lm $(POS):3:$(LM_BASE).pos.lm 
-LM_OPT_CLUSTER	= --lm $(CLUSTER):3:$(LM_BASE).cluster.lm 
-LM_OPT_DEPREL	= --lm $(DEPREL):3:$(LM_BASE).deprel.lm 
-LM_OPT_WSD	= --lm $(WSD):3:$(LM_BASE).wsd.lm 
+LM_OPT_FACTORS	= $(foreach FACTOR, $(FACTORS), --lm $($(FACTOR)):3:$(LM_BASE).$(FACTOR).lm)
+FACTOR_LMS	= $(foreach FACTOR, $(FACTORS), $(LM_BASE).$(FACTOR).lm)
 MOSES 		= /usr/local/bin/moses
-MOSES_OPTS	= --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 --lm $(FORM):3:$(LM_BASE).lm --alignment-factors 0-0
+MOSES_OPTS	= --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 --lm $(form):3:$(LM_BASE).lm 
 UNFACTORED_OPTS	= $(MOSES_OPTS) --corpus $(shell pwd)/$(UNFACTORED_TRAIN) 
 FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-factor-max $(FACTOR_MAX)
 FACTORED_DEPS	= $(FACTORED_CORPORA) $(LM_BASE).lm 
@@ -66,27 +65,32 @@ MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert
 
 .SECONDARY : # keep "intermediate" files (for reuse)
 
-.PHONY: corpora l1_corpus l2_corpus baseline models
+.PHONY: corpora 
+
+#
+# Corpus stuff
+#
 
 corpora : $(UNFACTORED_CORPORA) $(FACTORED_CORPORA)
-
-l1_corpus : $(CORPUS_MAKEFILE)
-	cd $(CORPUS_DIR) ; L=$(L1) make factored lms
-
-l2_corpus : $(CORPUS_MAKEFILE)
-	cd $(CORPUS_DIR) ; L=$(L2) make factored lms
 
 $(CORPUS_MAKEFILE) : $(CORPUS_DIR)
 	rm -f $@
 	cd $(CORPUS_DIR) && ln -s ../Makefile 
 
-baseline : optimized_unfactored_model
+$(CORPUS_DIR)/train/%.$(L1).lm : 
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) make train/$*.$(L1).lm 
 
-%_model : $(MODEL_BASE).%/model/moses.ini
-	echo "Made $* model"
+$(CORPUS_DIR)/train/%.$(L2).lm : 
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) make train/$*.$(L2).lm 
 
-optimized_%_model : $(MODEL_BASE).%/model.optimized/moses.ini
-	echo "Made optimized $* model"
+$(CORPUS_DIR)/train/%.lm : 
+	cd $(CORPUS_DIR) && PREFIX=$(LM_PREFIX) make train/$*.lm 
+
+$(CORPUS_DIR)/$(PREFIX).$(L1).% : 
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(PREFIX) make $(PREFIX).$(L1).$*
+
+$(CORPUS_DIR)/$(PREFIX).$(L2).% : 
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(PREFIX) make $(PREFIX).$(L2).$*
 
 #
 # Models 
@@ -95,44 +99,36 @@ optimized_%_model : $(MODEL_BASE).%/model.optimized/moses.ini
 $(MODEL_BASE).unfactored/model/moses.ini : $(UNFACTORED_CORPORA) $(LM_BASE).lm
 	train-model.perl --root-dir $(MODEL_BASE).unfactored $(UNFACTORED_OPTS)
 
-$(MODEL_BASE).lemma/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).lemma.lm
-	train-model.perl --root-dir $(MODEL_BASE).lemma   $(FACTORED_OPTS) --translation-factors $(FORM),$(LEMMA)-$(FORM),$(LEMMA) $(LM_OPT_LEMMA)
+# Generic rule for an additional translation factor on both sides
+$(MODEL_BASE).tb.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.lm
+	train-model.perl --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form),$($*)-$(form),$($*) --lm $($*):3:$(LM_BASE).$*.lm
 
-$(MODEL_BASE).pos/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).pos.lm
-	train-model.perl --root-dir $(MODEL_BASE).pos     $(FACTORED_OPTS) --translation-factors $(FORM),$(POS)-$(FORM),$(POS) $(LM_OPT_POS)
+# Generic rule for an additional translation and alignment factor on the source side only
+$(MODEL_BASE).as.ts.%/model/moses.ini : $(FACTORED_DEPS) 
+	train-model.perl --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --alignment-factors $(form),$($*)-$(form) --translation-factors $(form),$($*)-$(form)
 
-$(MODEL_BASE).cluster/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.lm
-	train-model.perl --root-dir $(MODEL_BASE).cluster $(FACTORED_OPTS) --translation-factors $(FORM),$(CLUSTER)-$(FORM),$(CLUSTER) $(LM_OPT_CLUSTER)
+# Generic rule for an additional translation factor on the source side only
+$(MODEL_BASE).ts.%/model/moses.ini : $(FACTORED_DEPS) 
+	train-model.perl --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form),$($*)-$(form)
 
-$(MODEL_BASE).deprel/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).deprel.lm
-	train-model.perl --root-dir $(MODEL_BASE).deprel  $(FACTORED_OPTS) --translation-factors $(FORM),$(DEPREL)-$(FORM),$(DEPREL) $(LM_OPT_DEPREL)
-
-$(MODEL_BASE).wsd/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).wsd.lm
-	train-model.perl --root-dir $(MODEL_BASE).wsd  $(FACTORED_OPTS) --translation-factors $(FORM),$(WSD)-$(FORM),$(WSD) $(LM_OPT_WSD)
-
-$(MODEL_BASE).combined/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).lemma.lm $(LM_BASE).pos.lm $(LM_BASE).cluster.lm $(LM_BASE).deprel.lm $(LM_BASE).wsd.lm
-	train-model.perl --root-dir $(MODEL_BASE).combined $(FACTORED_OPTS) --translation-factors $(FORM),$(LEMMA),$(POS),$(CLUSTER),$(DEPREL),$(WSD)-$(FORM),$(LEMMA),$(POS),$(CLUSTER),$(DEPREL),$(WSD) $(LM_OPT_LEMMA) $(LM_OPT_POS) $(LM_OPT_CLUSTER) $(LM_OPT_DEPREL) $(LM_OPT_WSD)
-
-$(MODEL_BASE).combined_nolemma/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).pos.lm $(LM_BASE).cluster.lm $(LM_BASE).deprel.lm $(LM_BASE).wsd.lm
-	train-model.perl --root-dir $(MODEL_BASE).combined_nolemma $(FACTORED_OPTS) --translation-factors $(FORM),$(POS),$(CLUSTER),$(DEPREL),$(WSD)-$(FORM),$(POS),$(CLUSTER),$(DEPREL),$(WSD) $(LM_OPT_POS) $(LM_OPT_CLUSTER) $(LM_OPT_DEPREL) $(LM_OPT_WSD)
+# Complex models
+$(MODEL_BASE).combined/model/moses.ini : $(FACTORED_DEPS) $(FACTOR_LMS)
+	train-model.perl --root-dir $(MODEL_BASE).combined $(FACTORED_OPTS) --translation-factors $(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd)-$(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd) $(LM_OPT_FACTORS)
 
 $(MODEL_BASE).gen_cluster/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.lm 
-	train-model.perl --root-dir $(MODEL_BASE).gen_cluster $(FACTORED_OPTS) --translation-factors $(FORM)-$(FORM)+$(CLUSTER)-$(CLUSTER) --generation-factors $(FORM)-$(CLUSTER) --decoding-steps t0,g0,t1 
+	train-model.perl --root-dir $(MODEL_BASE).gen_cluster $(FACTORED_OPTS) --translation-factors $(form)-$(form)+$(cluster)-$(cluster) --generation-factors $(form)-$(cluster) --decoding-steps t0,g0,t1 
 
 $(MODEL_BASE).gen_cluster_deprel/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.lm $(LM_BASE).deprel.lm
-	train-model.perl --root-dir $(MODEL_BASE).gen_cluster_deprel $(FACTORED_OPTS) --translation-factors $(FORM)-$(FORM)+$(DEPREL),$(CLUSTER)-$(DEPREL),$(CLUSTER) --generation-factors $(FORM)-$(DEPREL),$(CLUSTER) --decoding-steps t0,g0,t1 
+	train-model.perl --root-dir $(MODEL_BASE).gen_cluster_deprel $(FACTORED_OPTS) --translation-factors $(form)-$(form)+$(deprel),$(cluster)-$(deprel),$(cluster) --generation-factors $(form)-$(deprel),$(cluster) --decoding-steps t0,g0,t1 
 
-MODELS = unfactored pos cluster deprel wsd combined_nolemma gen_cluster gen_cluster_deprel # combined lemma
-UNOPTIMIZED_MODELS = $(addsuffix _model, $(MODELS))
-OPTIMIZED_MODELS = $(addprefix optimized_, $(UNOPTIMIZED_MODELS))
+baseline : unfactored_model
 
-unoptimized_models : $(UNOPTIMIZED_MODELS)
+%_model : $(MODEL_BASE).%/model.optimized/moses.ini
+	echo "Made optimized $* model"
 
-optimized_models : $(OPTIMIZED_MODELS)
-
-models : $(OPTIMIZED_MODELS)
-
+#
 # MERT
+#
 
 $(MODEL_BASE).unfactored/model.optimized/moses.ini : $(MODEL_BASE).unfactored/model/moses.ini
 	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_BASE).unfactored/model.optimized $(UNFACTORED_DEV).$(L1) $(UNFACTORED_DEV).$(L2) $(MOSES) $<
@@ -140,7 +136,9 @@ $(MODEL_BASE).unfactored/model.optimized/moses.ini : $(MODEL_BASE).unfactored/mo
 $(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.ini
 	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $<
 
+#
 # Testing 
+#
 
 $(MODEL_BASE).unfactored/%.test.out : $(MODEL_BASE).unfactored/%/moses.ini 
 	cat $(UNFACTORED_TEST).$(L1) | moses -f $< > $@ 
@@ -151,22 +149,19 @@ $(MODEL_BASE).%.test.out : $(MODEL_BASE).%/moses.ini
 $(MODEL_BASE).%.test.out.eval : $(MODEL_BASE).%.test.out
 	cat $< | multi-bleu.perl $(UNFACTORED_TEST).$(L2) > $@
 
-MODEL_BASES = $(addprefix $(MODEL_BASE)., $(MODELS))
+MODELS = $(FACTORS)
+FACTOR_CONFIGS = tb ts as.ts
+MODEL_CONFIGS = unfactored $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(foreach MODEL, $(MODELS), $(FACTOR_CONFIG).$(MODEL))) combined 
+MODEL_BASES = $(addprefix $(MODEL_BASE)., $(MODEL_CONFIGS))
 TEST_OUTPUTS = $(addsuffix /model.optimized.test.out, $(MODEL_BASES))
 EVAL_OUTPUTS = $(addsuffix .eval, $(TEST_OUTPUTS))
 UNOPTIMIZED_TEST_OUTPUTS = $(addsuffix /model.test.out, $(MODEL_BASES))
 UNOPTIMIZED_EVAL_OUTPUTS = $(addsuffix .eval, $(UNOPTIMIZED_TEST_OUTPUTS))
+
+#gen_cluster gen_cluster_deprel 
 
 eval : $(EVAL_OUTPUTS)
 	tail $^
 
 unoptimized-eval : $(UNOPTIMIZED_EVAL_OUTPUTS)
 	tail $^
-
-
-
-
-
-
-
-

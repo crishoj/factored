@@ -39,7 +39,7 @@ CSTLEMMA 	= /opt/cstlemma/cstlemma
 CSTLEMMA_OPTS 	= -t- -b '$$w' -B '$$w' -c '$$b1[[$$b?]~1$$B]$$s' -f /opt/cstlemma/da/flexrules -d /opt/cstlemma/da/dict -eU
 
 LEMMAGEN 	= /nyusers/anders/stemmers/v2/lemmagen/binary/linux/lemmatize
-LEMMAGEN_OPTS 	= -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin
+LEMMAGEN_OPTS 	= -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin -f wpl
 
 SRILM_OPTIONS 	= -order 3 -interpolate -kndiscount -unk 
 SRILM_OPTIONS2 	= -order 3 -interpolate 
@@ -55,8 +55,14 @@ SPLIT_CMD	= ../../split.sh $(DEV_SENTS) $(TEST_SENTS)
 %.da.lemma : %.da 
 	$(CSTLEMMA) $(CSTLEMMA_OPTS) -i $< -o $@
 
-%.en.lemma : %.en 
+%.en.lemma : %.en.lemmatize.out
+	 $(FACTOR_TOOL) --trace col_to_spl --col 2 --fallback 1 $< --output $@
+
+%.en.lemmatize.out : %.en.wpl
 	$(LEMMAGEN) $(LEMMAGEN_OPTS) $< $@
+
+%.en.wpl : %.en 
+	$(FACTOR_TOOL) --trace spl_to_wpl $< --output $@
 
 $(CORPUS).pos $(CORPUS).deprel : $(DEPPARSE)
 	$(FACTOR_TOOL) --trace conll_extract $< --output-pos $(CORPUS).pos --output-deprel $(CORPUS).deprel

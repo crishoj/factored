@@ -264,6 +264,45 @@ command :prepare_wsd do |c|
   end
 end
 
+command :spl_to_wpl do |c|
+  c.syntax = 'factor spl_to_wpl SENTS --output OUTPUT'
+  c.description = 'Convert a file in a sentence-per-line format to word-per-line'
+  c.option '--output OUTPUT', "Where to put the output"
+  c.when_called do |args, options|
+    output = File.open(options.output, 'w')
+    File.foreach(args.first) do |line|
+      output << line.chomp.gsub(/ /, "\n")+"\n\n"
+    end
+  end
+end
+
+command :col_to_spl do |c|
+  c.syntax = 'factor col_to_spl COLFILE --output OUTPUT'
+  c.description = 'Extract a single column from a columnar file and save it in sentence-per-line format'
+  c.option '--output OUTPUT', "Where to put the output"
+  c.option '--col COL', Integer, "The column to extract, counting from 1"
+  c.option '--fallback COL', Integer, "Column to fallback to if the extracted column is empty, counting from 1"
+  c.when_called do |args, options|
+    options.default :col => 1, :fallback => 1
+    output = File.open(options.output, 'w')
+    toks = []
+    File.foreach(args.first) do |line|
+      line.chop!
+      if line == ""
+        output << toks.join(' ') + "\n"
+        toks = []
+      else
+        cols = line.split("\t")
+        if cols[options.col-1] == ""
+          toks << cols[options.fallback-1]
+        else
+          toks << cols[options.col-1]
+        end
+      end
+    end
+  end
+end
+
 command :wsd_extract do |c|
   c.syntax = 'factor wsd_extract CORPUS SENSES [options]'
   c.description = "Create a factor file with word word senses"
