@@ -58,12 +58,12 @@ MOSES_OPTS	= --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 --lm $(form):3:$(LM_BASE
 UNFACTORED_OPTS	= $(MOSES_OPTS) --corpus $(shell pwd)/$(UNFACTORED_TRAIN) 
 FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-factor-max $(FACTOR_MAX)
 FACTORED_DEPS	= $(FACTORED_CORPORA) $(LM_BASE).lm 
-TRAIN_LOG_INIT	= mkdir -p $(subst /model/moses.ini,,$@)/log
-TRAIN_CMD	= $(TRAIN_LOG_INIT) && train-model.perl
-TRAIN_LOG_CMD	= 2> $(subst /model/moses.ini,,$@)/log/train-model.perl.log
-#  
+TRAIN_CMD	= mkdir -p $(subst /model/moses.ini,,$@)/log && train-model.perl
+TRAIN_LOG_CMD	= 2> $(subst /model/moses.ini,,$@)/log/train-model.perl.log >&2
+# Mert
 MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert
-MERT_LOG_CMD	= 2> $(subst /model.optimized/moses.ini,,$@)/log/mert-moses.log
+MERT_CMD	= mkdir -p $(subst /model.optimized/moses.ini,,$@)/log && mert-moses.pl $(MERT_OPTS)
+MERT_LOG_CMD	= 2> $(subst /model.optimized/moses.ini,,$@)/log/mert-moses.log >&2
 
 .DELETE_ON_ERROR : # don't leave half-baked files around
 
@@ -133,17 +133,15 @@ baseline : unfactored_model
 #
 # MERT
 #
-
 $(MODEL_BASE).unfactored/model.optimized/moses.ini : $(MODEL_BASE).unfactored/model/moses.ini
-	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_BASE).unfactored/model.optimized $(UNFACTORED_DEV).$(L1) $(UNFACTORED_DEV).$(L2) $(MOSES) $< $(MERT_LOG_CMD)
+	$(MERT_CMD) --working-dir=$(MODEL_BASE).unfactored/model.optimized $(UNFACTORED_DEV).$(L1) $(UNFACTORED_DEV).$(L2) $(MOSES) $< $(MERT_LOG_CMD)
 
 $(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.ini
-	mert-moses.pl $(MERT_OPTS) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $< $(MERT_LOG_CMD)
+	$(MERT_CMD) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $< $(MERT_LOG_CMD)
 
 #
 # Testing 
 #
-
 $(MODEL_BASE).unfactored/%.test.out : $(MODEL_BASE).unfactored/%/moses.ini 
 	cat $(UNFACTORED_TEST).$(L1) | moses -f $< > $@ 
 
@@ -169,3 +167,9 @@ eval : $(EVAL_OUTPUTS)
 
 unoptimized-eval : $(UNOPTIMIZED_EVAL_OUTPUTS)
 	tail $^
+
+clean-optimized : 
+	rm -rf $(MODEL_BASE).*/model.optimized
+
+clean : 
+	rm -rf $(MODEL_BASE).*
