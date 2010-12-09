@@ -292,12 +292,10 @@ command :col_to_spl do |c|
         output << toks.join(' ') + "\n"
         toks = []
       else
-        cols = line.split("\t")
-        if cols[options.col-1] == ""
-          toks << cols[options.fallback-1]
-        else
-          toks << cols[options.col-1]
-        end
+        cols = line.split(/\s+/)
+        val = cols[options.col-1]
+        val = cols[options.fallback-1] if val.nil? or val.empty?
+        toks << val
       end
     end
   end
