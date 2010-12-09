@@ -64,12 +64,20 @@ MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
 LOG_INIT_CMD	= mkdir -p $(dir $@)
 LOG_CMD		= 2> $@.log >&2
+# Testing
+FACTOR_CONFIGS 	= tb ts as.ts
+MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(FACTORS))) 
+MODELS 		= unfactored $(MODEL_CONFIGS) combined gen_cluster gen_cluster_deprel
+MODEL_BASES 	= $(addprefix $(MODEL_BASE)., $(MODELS))
+TESTS 		= $(addsuffix /model.test.out, $(MODEL_BASES)) $(addsuffix /model.optimized.test.out, $(MODEL_BASES))
+BLEUS 		= $(addsuffix .bleu, $(TESTS))
+METEORS 	= $(addsuffix .meteor, $(TESTS))
 
 .DELETE_ON_ERROR : # don't leave half-baked files around
 
 .SECONDARY : # keep "intermediate" files (for reuse)
 
-.PHONY: corpora 
+.PHONY: corpora all eval bleu meteor clean clean-optimized clean-eval
 
 #
 # Corpus stuff
@@ -157,28 +165,25 @@ $(MODEL_BASE).unfactored/%.test.out : $(MODEL_BASE).unfactored/%/moses.ini
 $(MODEL_BASE).%.test.out : $(MODEL_BASE).%/moses.ini 
 	cat $(FACTORED_TEST).$(L1) | moses -f $< > $@ 2> $@.log
 
-$(MODEL_BASE).%.test.out.eval : $(MODEL_BASE).%.test.out
+$(MODEL_BASE).%.test.out.bleu : $(MODEL_BASE).%.test.out
 	cat $< | multi-bleu.perl $(UNFACTORED_TEST).$(L2) > $@ 2> $@.log
 
-MODELS = $(FACTORS)
-FACTOR_CONFIGS = tb ts as.ts
-MODEL_CONFIGS = unfactored $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(foreach MODEL, $(MODELS), $(FACTOR_CONFIG).$(MODEL))) combined 
-MODEL_BASES = $(addprefix $(MODEL_BASE)., $(MODEL_CONFIGS))
-TEST_OUTPUTS = $(addsuffix /model.optimized.test.out, $(MODEL_BASES))
-EVAL_OUTPUTS = $(addsuffix .eval, $(TEST_OUTPUTS))
-UNOPTIMIZED_TEST_OUTPUTS = $(addsuffix /model.test.out, $(MODEL_BASES))
-UNOPTIMIZED_EVAL_OUTPUTS = $(addsuffix .eval, $(UNOPTIMIZED_TEST_OUTPUTS))
+$(MODEL_BASE).%.test.out.meteor : $(MODEL_BASE).%.test.out
+	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(UNFACTORED_TEST).$(L2) -l $(L2) > $@
 
-#gen_cluster gen_cluster_deprel 
-
-eval : $(EVAL_OUTPUTS)
+bleu : $(BLEUS)
 	tail $^
 
-unoptimized-eval : $(UNOPTIMIZED_EVAL_OUTPUTS)
+meteor : $(METEORS)
 	tail $^
+
+all : bleu meteor
 
 clean-optimized : 
 	rm -rf $(MODEL_BASE).*/model.optimized
+
+clean-eval : 
+	rm -rf $(MODEL_BASE).*/model*.out.bleu $(MODEL_BASE).*/model*.out.meteor
 
 clean : 
 	rm -rf $(MODEL_BASE).*
