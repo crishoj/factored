@@ -23,7 +23,7 @@ command :stdout do |c|
       end
     end
     raise "Input file must be specified with {curly_braces}" unless input_idx
-    input_file = input_file[1...-1]    
+    input_file = input_file[1...-1] 
     options.default :granularity => 1, :chunks => 4, :output => "#{input_file}.out"
     num_lines = %x[wc -l #{input_file}].chomp.to_i
     say "Input:   #{input_file} (#{num_lines} lines)"
