@@ -59,6 +59,7 @@ SPLIT_CMD	= ../../split.sh $(DEV_SENTS) $(TEST_SENTS)
 	 $(FACTOR_TOOL) --trace col_to_spl --col 2 --fallback 1 $< --output $@
 
 %.en.lemmatize.out : %.en.wpl
+	rm -f $@
 	$(LEMMAGEN) $(LEMMAGEN_OPTS) $< $@
 
 %.en.wpl : %.en 
@@ -81,7 +82,7 @@ $(CLUSTER_PATHS) : $(CORPUS)
 	$(FACTOR_TOOL) --trace prepare_wsd --output $@ --before 0 --after 0 $^
 
 %.wsd.output : %.wsd.context
-	../../parallelize --output $@ --chunks=16 --granularity=2 -- ukb_wsd -D ../../wsd/$(L)/dict.txt -K ../../wsd/$(L)/rels.bin --ppr {$<}
+	../../parallelize --output $@ --chunks=16 --granularity=2 --nice=10 -- ukb_wsd -D ../../wsd/$(L)/dict.txt -K ../../wsd/$(L)/rels.bin --ppr {$<}
 
 %.wsd : %.wsd.output
 	$(FACTOR_TOOL) --trace wsd_extract $(CORPUS) $< --output $@
@@ -109,7 +110,7 @@ clean-lms :
 factored : $(PREFIX).factored.$(L) train/$(PREFIX).factored.$(L)
 unfactored : train/$(PREFIX).$(L)
 
-$(PREFIX).factored.$(L) : $(CORPUS).factored
+$(PREFIX).factored.$(L) : $(PREFIX).$(L).factored
 	rm -f $@
 	ln -s $< $@
 

@@ -13,6 +13,7 @@ command :stdout do |c|
   c.option '--output OUTFILE', 'Where to place the output'  
   c.option '--chunks N', Integer, 'Number of chunks (and jobs to execute in parallel)'
   c.option '--granularity N', Integer, 'Ensure the number of lines in each chunk is divisible by N (useful for block-structured data)'
+  c.option '--nice N', Integer, 'Run the jobs with niceness N to be less of a CPU hog'
   c.action do |args, options|
     input_file = nil
     input_idx = nil
@@ -73,11 +74,11 @@ command :stdout do |c|
     jobs = chunk_files.collect do |chunk_file|
       args[input_idx] = chunk_file
       cmd = args.join(' ') + " > #{chunk_file}.out"
+      cmd = "nice -n #{options.nice} #{cmd}" if options.nice
       pid = fork { exec cmd }
       say "[fork PID=#{pid}] #{cmd}"
       pid
     end
-
     all_good = jobs.all? do |pid| 
       Process.wait(pid)
       if $? != 0
