@@ -84,8 +84,8 @@ $(CLUSTER_PATHS) : $(CORPUS)
 %.wsd.output : %.wsd.context
 	../../parallelize --output $@ --chunks=16 --granularity=2 --nice=10 -- ukb_wsd -D ../../wsd/$(L)/dict.txt -K ../../wsd/$(L)/rels.bin --ppr {$<}
 
-%.wsd : %.wsd.output
-	$(FACTOR_TOOL) --trace wsd_extract $(CORPUS) $< --output $@
+%.wsd : %.lemma %.wsd.output
+	$(FACTOR_TOOL) --trace wsd_extract $^ --output $@
 
 $(LM) : train/$(CORPUS)
 	ngram-count $(SRILM_OPTIONS) -text $< -lm $@
