@@ -14,10 +14,11 @@
 # Arguments from environment
 L1		?= da
 L2		?= en
-PREFIX		?= europarl.truncated
+PREFIX		?= europarl.cleaned
+#PREFIX		?= europarl.truncated
 # LM_PREFIX may be used to specify a language model from a different corpus
-#LM_PREFIX	?= $(PREFIX)
-LM_PREFIX	?= europarl.cleaned
+LM_PREFIX	?= $(PREFIX)
+#LM_PREFIX	?= europarl.cleaned
 
 # Derived variables
 PAIR 		= $(L1)-$(L2)
@@ -59,11 +60,10 @@ UNFACTORED_OPTS	= $(MOSES_OPTS) --corpus $(shell pwd)/$(UNFACTORED_TRAIN)
 FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-factor-max $(FACTOR_MAX)
 FACTORED_DEPS	= $(FACTORED_CORPORA) $(LM_BASE).lm 
 TRAIN_CMD	= train-model.perl
+CLEAN_MODEL_CMD	= rm -rf $(dir $@)
 # Mert
 MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
-LOG_INIT_CMD	= mkdir -p $(dir $@)
-LOG_CMD		= 2> $@.log >&2
 # Testing
 FACTOR_CONFIGS 	= tb ts as.ts
 MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(FACTORS))) 
@@ -72,6 +72,10 @@ MODEL_BASES 	= $(addprefix $(MODEL_BASE)., $(MODELS))
 TESTS 		= $(addsuffix /model.test.out, $(MODEL_BASES)) $(addsuffix /model.optimized.test.out, $(MODEL_BASES))
 BLEUS 		= $(addsuffix .bleu, $(TESTS))
 METEORS 	= $(addsuffix .meteor, $(TESTS))
+# Logging
+LOG_INIT_CMD	= mkdir -p $(dir $@)
+LOG_CMD		= 2> $@.log >&2
+
 
 .DELETE_ON_ERROR : # don't leave half-baked files around
 
@@ -109,34 +113,41 @@ $(CORPUS_DIR)/$(PREFIX).$(L2).% :
 #
 
 $(MODEL_BASE).unfactored/model/moses.ini : $(UNFACTORED_CORPORA) $(LM_BASE).lm
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).unfactored $(UNFACTORED_OPTS) $(LOG_CMD)
 
 # Generic rule for an additional translation factor on both sides
 $(MODEL_BASE).tb.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.lm
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form),$($*)-$(form),$($*) --lm $($*):3:$(LM_BASE).$*.lm $(LOG_CMD)
 
 # Generic rule for an additional translation and alignment factor on the source side only
 $(MODEL_BASE).as.ts.%/model/moses.ini : $(FACTORED_DEPS) 
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --alignment-factors $(form),$($*)-$(form) --translation-factors $(form),$($*)-$(form) $(LOG_CMD)
 
 # Generic rule for an additional translation factor on the source side only
 $(MODEL_BASE).ts.%/model/moses.ini : $(FACTORED_DEPS) 
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form),$($*)-$(form) $(LOG_CMD)
 
 # Complex models
 $(MODEL_BASE).combined/model/moses.ini : $(FACTORED_DEPS) $(FACTOR_LMS)
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).combined $(FACTORED_OPTS) --translation-factors $(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd)-$(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd) $(LM_OPT_FACTORS) $(LOG_CMD)
 
 $(MODEL_BASE).gen_cluster/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.lm 
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).gen_cluster $(FACTORED_OPTS) --translation-factors $(form)-$(form)+$(cluster)-$(cluster) --generation-factors $(form)-$(cluster) --decoding-steps t0,g0,t1 $(LOG_CMD)
 
 $(MODEL_BASE).gen_cluster_deprel/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.lm $(LM_BASE).deprel.lm
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).gen_cluster_deprel $(FACTORED_OPTS) --translation-factors $(form)-$(form)+$(deprel),$(cluster)-$(deprel),$(cluster) --generation-factors $(form)-$(deprel),$(cluster) --decoding-steps t0,g0,t1 $(LOG_CMD)
 
@@ -149,10 +160,12 @@ baseline : unfactored_model
 # MERT
 #
 $(MODEL_BASE).unfactored/model.optimized/moses.ini : $(MODEL_BASE).unfactored/model/moses.ini
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(MERT_CMD) --working-dir=$(MODEL_BASE).unfactored/model.optimized $(UNFACTORED_DEV).$(L1) $(UNFACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
 $(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.ini
+	$(CLEAN_MODEL_CMD) 
 	$(LOG_INIT_CMD)
 	$(MERT_CMD) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
@@ -177,7 +190,9 @@ bleu : $(BLEUS)
 meteor : $(METEORS)
 	tail $^
 
-all : bleu meteor
+eval-all : bleu meteor
+
+all : eval-all
 
 clean-optimized : 
 	rm -rf $(MODEL_BASE).*/model.optimized
@@ -187,3 +202,4 @@ clean-eval :
 
 clean : 
 	rm -rf $(MODEL_BASE).*
+
