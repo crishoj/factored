@@ -302,24 +302,25 @@ command :col_to_spl do |c|
 end
 
 command :wsd_extract do |c|
-  c.syntax = 'factor wsd_extract CORPUS SENSES [options]'
+  c.syntax = 'factor wsd_extract LEMMAS SENSES [options]'
   c.description = "Create a factor file with word word senses"
   c.option '--output FILE', 'Where to put the factor file'
   c.action do |args, options|
-    corpus_file = args[0]
+    lemmas_file = args[0]
     sense_file = args[1]
-    say "Using corpus #{corpus_file}"
+    say "Using lemmas #{lemmas_file}"
     say "Reading senses from #{sense_file}"
     sense_file = File.open(sense_file)
     say "Writing output to #{options.output}"
     output = File.open(options.output, 'w')
-    cur_ctx = "ctx_0"
+    cur_ctx_no = 0
     sense_file.gets # skip comment
     sense_ctx, id, sense = sense_file.gets.chomp.split(/\s+/)
-    File.foreach(corpus_file) do |line|
-      cur_ctx.succ!
+    File.foreach(lemmas_file) do |line|
+      cur_ctx_no += 1
+      cur_ctx = "ctx_#{cur_ctx_no}"
       cur_id = "0"
-      output << line.chomp.split(' ').collect { |form| 
+      output << line.chomp.split(' ').collect { |lemma| 
         cur_id.succ!
         #say "id: #{id}, cur_id: #{cur_id}, sense_ctx: #{sense_ctx}, cur_ctx: #{cur_ctx}"
         if cur_ctx == sense_ctx and cur_id == id 
@@ -327,9 +328,9 @@ command :wsd_extract do |c|
           ret = sense
           sense_ctx, id, sense = sense_file.gets.chomp.split(/\s+/)
         else
-          # no word sense .. use form instead
-          #say " - using form: #{form}"
-          ret = form
+          # no word sense .. use lemma instead
+          #say " - using lemma: #{lemma}"
+          ret = lemma
         end 
         ret
       }.join(' ') + "\n"
