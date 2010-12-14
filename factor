@@ -301,6 +301,19 @@ command :col_to_spl do |c|
   end
 end
 
+class WSDOutput
+  def initialize(filename)
+    @file = File.open(filename)
+  end
+  def next
+    line = @file.gets
+    while line and line[0...2] == '!!' do
+      line = @file.gets
+    end
+    line.chomp.split(/\s+/) if line
+  end
+end
+
 command :wsd_extract do |c|
   c.syntax = 'factor wsd_extract LEMMAS SENSES [options]'
   c.description = "Create a factor file with word word senses"
@@ -310,12 +323,11 @@ command :wsd_extract do |c|
     sense_file = args[1]
     say "Using lemmas #{lemmas_file}"
     say "Reading senses from #{sense_file}"
-    sense_file = File.open(sense_file)
+    senses = WSDOutput.new(sense_file)
     say "Writing output to #{options.output}"
     output = File.open(options.output, 'w')
     cur_ctx_no = 0
-    sense_file.gets # skip comment
-    sense_ctx, id, sense = sense_file.gets.chomp.split(/\s+/)
+    sense_ctx, id, sense = senses.next
     File.foreach(lemmas_file) do |line|
       cur_ctx_no += 1
       cur_ctx = "ctx_#{cur_ctx_no}"
@@ -326,7 +338,7 @@ command :wsd_extract do |c|
         if cur_ctx == sense_ctx and cur_id == id 
           #say " - using sense: #{sense}"
           ret = sense
-          sense_ctx, id, sense = sense_file.gets.chomp.split(/\s+/)
+          sense_ctx, id, sense = senses.next
         else
           # no word sense .. use lemma instead
           #say " - using lemma: #{lemma}"
