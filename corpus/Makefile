@@ -16,6 +16,7 @@ L		?= da
 PREFIX 		?= europarl.cleaned
 DEV_SENTS	?= 2000
 TEST_SENTS	?= 10000
+LM_SUFFIX	?= qblm
 
 # Derived variables
 PWD 		= $(shell pwd)
@@ -24,12 +25,12 @@ CORPUS 		= $(PREFIX).$(L)
 CLUSTER_PATHS 	= clusters/$(L)/$(PREFIX)-c1000-p1.out/paths
 DEPPARSE 	= ../../../stacked_dep/data/$(L)/europarl-$(PAIR)/mst2.out.conll
 
-LM	    	= train/$(CORPUS).lm
-LEMMA_LM    	= train/$(CORPUS).lemma.lm
-POS_LM	    	= train/$(CORPUS).pos.lm
-DEPREL_LM  	= train/$(CORPUS).deprel.lm
-CLUSTER_LM  	= train/$(CORPUS).cluster.lm
-WSD_LM	    	= train/$(CORPUS).wsd.lm
+LM	    	= train/$(CORPUS).$(LM_SUFFIX)
+LEMMA_LM    	= train/$(CORPUS).lemma.$(LM_SUFFIX)
+POS_LM	    	= train/$(CORPUS).pos.$(LM_SUFFIX)
+DEPREL_LM  	= train/$(CORPUS).deprel.$(LM_SUFFIX)
+CLUSTER_LM  	= train/$(CORPUS).cluster.$(LM_SUFFIX)
+WSD_LM	    	= train/$(CORPUS).wsd.$(LM_SUFFIX)
 
 LMS 		= $(LM) $(LEMMA_LM) $(POS_LM) $(CLUSTER_LM) $(DEPREL_LM) $(WSD_LM)
 
@@ -87,11 +88,16 @@ $(CLUSTER_PATHS) : $(CORPUS)
 %.wsd : %.lemma %.wsd.output
 	$(FACTOR_TOOL) --trace wsd_extract $^ --output $@
 
-$(LM) : train/$(CORPUS)
-	ngram-count $(SRILM_OPTIONS) -text $< -lm $@
-
 %.lm : %
 	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
+
+# Quantized LM (see http://www.statmt.org/moses/?n=FactoredTraining.BuildingLanguageModel#ntoc6)
+%.qlm : %.lm
+	quantize-lm $< $@
+
+# Binary LM
+%.qblm : %.qlm
+	compile-lm $< $@
 
 train/% : %
 	$(SPLIT_CMD) $<
