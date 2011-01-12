@@ -11,27 +11,34 @@
 # source and target language codes, repectively.
 #
 
-# Arguments from environment
-L1		?= da
-L2		?= en
-PREFIX		?= europarl.cleaned
-#PREFIX		?= europarl.truncated
+##### User configurable options #####
+
+# Source and target language 
+L1		?= @L1@
+L2		?= @L2@
+# Prefix (name) shared by files belonging to this corpus
+CORPUS_PREFIX	?= @CORPUS_PREFIX@
 # LM_PREFIX may be used to specify a language model from a different corpus
-LM_PREFIX	?= $(PREFIX)
-#LM_PREFIX	?= europarl.cleaned
+LM_PREFIX	?= 
+
+### End User configurable options ###
+
+ifndef LM_PREFIX
+LM_PREFIX = $(CORPUS_PREFIX)
+endif
 
 # Derived variables
 PAIR 		= $(L1)-$(L2)
 CORPUS_DIR 	= corpus/$(PAIR)
 MODEL_DIR	= models/$(PAIR)
-MODEL_BASE	= $(MODEL_DIR)/$(PREFIX)
+MODEL_BASE	= $(MODEL_DIR)/$(CORPUS_PREFIX)
 CORPUS_MAKEFILE = $(CORPUS_DIR)/Makefile
-UNFACTORED_TRAIN= $(CORPUS_DIR)/train/$(PREFIX)
-UNFACTORED_DEV 	= $(CORPUS_DIR)/dev/$(PREFIX)
-UNFACTORED_TEST	= $(CORPUS_DIR)/test/$(PREFIX)
-FACTORED_TRAIN	= $(CORPUS_DIR)/train/$(PREFIX).factored
-FACTORED_DEV 	= $(CORPUS_DIR)/dev/$(PREFIX).factored
-FACTORED_TEST	= $(CORPUS_DIR)/test/$(PREFIX).factored
+UNFACTORED_TRAIN= $(CORPUS_DIR)/train/$(CORPUS_PREFIX)
+UNFACTORED_DEV 	= $(CORPUS_DIR)/dev/$(CORPUS_PREFIX)
+UNFACTORED_TEST	= $(CORPUS_DIR)/test/$(CORPUS_PREFIX)
+FACTORED_TRAIN	= $(CORPUS_DIR)/train/$(CORPUS_PREFIX).factored
+FACTORED_DEV 	= $(CORPUS_DIR)/dev/$(CORPUS_PREFIX).factored
+FACTORED_TEST	= $(CORPUS_DIR)/test/$(CORPUS_PREFIX).factored
 UNFACTORED_CORPORA = \
 	$(UNFACTORED_TRAIN).$(L1) $(UNFACTORED_TRAIN).$(L2) \
 	$(UNFACTORED_DEV).$(L1)   $(UNFACTORED_DEV).$(L2) \
@@ -104,11 +111,11 @@ $(CORPUS_DIR)/train/%.$(L1).$(LM_SUFFIX) :
 $(CORPUS_DIR)/train/%.$(L2).$(LM_SUFFIX) : 
 	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make train/$*.$(L2).$(LM_SUFFIX) 
 
-$(CORPUS_DIR)/$(PREFIX).$(L1).% : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(PREFIX).$(L1).$*
+$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : 
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L1).$*
 
-$(CORPUS_DIR)/$(PREFIX).$(L2).% : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(PREFIX).$(L2).$*
+$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L2).% : 
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L2).$*
 
 #
 # Models 
