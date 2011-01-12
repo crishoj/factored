@@ -16,7 +16,7 @@ L		?= da
 PREFIX 		?= europarl.cleaned
 DEV_SENTS	?= 2000
 TEST_SENTS	?= 10000
-LM_SUFFIX	?= qblm
+LM_SUFFIX	?= blm.mmap
 
 # Derived variables
 PWD 		= $(shell pwd)
@@ -98,6 +98,10 @@ $(CLUSTER_PATHS) : $(CORPUS)
 # Binary LM
 %.qblm : %.qlm
 	compile-lm $< $@
+
+# Binary LM for memory mapping with KenLM
+%.blm.mmap : %.lm
+	build_binary $< $@
 
 train/% : %
 	$(SPLIT_CMD) $<

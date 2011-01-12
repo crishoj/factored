@@ -51,7 +51,7 @@ wsd		= 5
 FACTORS 	= pos cluster deprel wsd lemma
 FACTOR_MAX	= 5
 # Moses
-LM_SUFFIX	= qblm
+LM_SUFFIX	= blm.mmap
 LM_BASE 	= $(CORPUS_DIR)/train/$(LM_PREFIX).$(L2)
 LM_PATH		= $(shell pwd)/$(LM_BASE)
 LM_OPT_FACTORS	= $(foreach FACTOR, $(FACTORS), --lm $($(FACTOR)):3:$(LM_PATH).$(FACTOR).$(LM_SUFFIX))
