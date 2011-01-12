@@ -63,7 +63,7 @@ FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-f
 FACTORED_DEPS	= $(FACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX) 
 UNFACTORED_DEPS	= $(UNFACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX) 
 TRAIN_CMD	= train-model.perl
-CLEAN_MODEL_CMD	= rm -f $(dir $@)/extract.inv.gz # rm -rf $(dir $@)
+CLEAN_MODEL_CMD	= rm -f $(dir $@)extract.gz $(dir $@)extract.inv.gz # rm -rf $(dir $@)
 # Mert
 MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
