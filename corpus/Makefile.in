@@ -87,7 +87,7 @@ $(CLUSTER_PATHS) : $(CORPUS)
 %.wsd : %.lemma %.wsd.output
 	$(FACTOR_TOOL) --trace wsd_extract $^ --output $@
 
-%.$(L).lm : %.$(L)
+%.lm : %
 	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
 
 # Binary LM for memory mapping with KenLM
