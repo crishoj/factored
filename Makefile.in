@@ -16,10 +16,8 @@
 # Source and target language 
 L1		?= @L1@
 L2		?= @L2@
-# Prefix (name) shared by files belonging to this corpus
 CORPUS_PREFIX	?= @CORPUS_PREFIX@
-# LM_PREFIX may be used to specify a language model from a different corpus
-LM_PREFIX	?= 
+LM_PREFIX	?= @LM_PREFIX@
 
 ### End User configurable options ###
 
@@ -58,13 +56,13 @@ wsd		= 5
 FACTORS 	= pos cluster deprel wsd lemma
 FACTOR_MAX	= 5
 # Moses
-LM_SUFFIX	= blm.mmap
+LM_SUFFIX	= kblm.mmap
 LM_BASE 	= $(CORPUS_DIR)/train/$(LM_PREFIX).$(L2)
 LM_PATH		= $(shell pwd)/$(LM_BASE)
 LM_OPT_FACTORS	= $(foreach FACTOR, $(FACTORS), --lm $($(FACTOR)):3:$(LM_PATH).$(FACTOR).$(LM_SUFFIX))
 FACTOR_LMS	= $(foreach FACTOR, $(FACTORS), $(LM_BASE).$(FACTOR).$(LM_SUFFIX))
-MOSES 		= /usr/local/bin/moses
-MOSES_OPTS	= --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 --lm $(form):3:$(LM_PATH).$(LM_SUFFIX) 
+MOSES 		= @MOSES_BIN@
+MOSES_OPTS	= --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 --lm $(form):3:$(LM_PATH).$(LM_SUFFIX)
 UNFACTORED_OPTS	= $(MOSES_OPTS) --corpus $(shell pwd)/$(UNFACTORED_TRAIN) 
 FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-factor-max $(FACTOR_MAX)
 FACTORED_DEPS	= $(FACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX) 
@@ -72,7 +70,7 @@ UNFACTORED_DEPS	= $(UNFACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX)
 TRAIN_CMD	= train-model.perl
 CLEAN_MODEL_CMD	= rm -f $(dir $@)extract.gz $(dir $@)extract.inv.gz # rm -rf $(dir $@)
 # Mert
-MERT_OPTS 	= --mertdir=/opt/mosesdecoder/mert
+MERT_OPTS 	= --mertdir=@MERT_DIR@ 
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
 # Testing
 FACTOR_CONFIGS 	= tb ts as.ts tb.alt tb.alt.gen
@@ -105,17 +103,23 @@ $(CORPUS_MAKEFILE) : $(CORPUS_DIR)
 	rm -f $@
 	cd $(CORPUS_DIR) && ln -s ../Makefile 
 
-$(CORPUS_DIR)/train/%.$(L1).$(LM_SUFFIX) : 
+$(CORPUS_DIR)/train/%.$(L1).$(LM_SUFFIX) : $(CORPUS_MAKEFILE)
 	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make train/$*.$(L1).$(LM_SUFFIX) 
 
-$(CORPUS_DIR)/train/%.$(L2).$(LM_SUFFIX) : 
+$(CORPUS_DIR)/train/%.$(L2).$(LM_SUFFIX) : $(CORPUS_MAKEFILE)
 	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make train/$*.$(L2).$(LM_SUFFIX) 
 
-$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : 
+$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : $(CORPUS_MAKEFILE)
 	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L1).$*
 
-$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L2).% : 
+$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L2).% : $(CORPUS_MAKEFILE)
 	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L2).$*
+
+$(CORPUS_DIR)/%.$(L1) : $(CORPUS_MAKEFILE)
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $*.$(L1)
+
+$(CORPUS_DIR)/%.$(L2) : $(CORPUS_MAKEFILE)
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $*.$(L2)
 
 #
 # Models 
@@ -191,16 +195,29 @@ $(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.ini
 	$(MERT_CMD) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
 #
+# Binary phrase tables
+#
+#%.binphr.idx : %.gz
+#	# sed -E 's/^0 ([0-9] [0-9] [0-9] .*phrase.*$)/1 \1/g'
+#	cd $(shell dirname $@) && zcat < $(shell basename $<) | LC_ALL=C sort | processPhraseTable -ttable 0 0 - -nscores 5 -out phrase-table
+
+#
 # Testing 
 #
-$(MODEL_BASE).unfactored/%.test.out : $(MODEL_BASE).unfactored/%/moses.ini 
+$(MODEL_BASE).unfactored/model.test.out : $(MODEL_BASE).unfactored/model/moses.ini 
 	cat $(UNFACTORED_TEST).$(L1) | moses -f $< > $@ 2> $@.log
 
-$(MODEL_BASE).%.test.out : $(MODEL_BASE).%/moses.ini 
+$(MODEL_BASE).unfactored/model.optimized.test.out : $(MODEL_BASE).unfactored/model.optimized/moses.ini 
+	cat $(UNFACTORED_TEST).$(L1) | moses -f $< > $@ 2> $@.log
+
+$(MODEL_BASE).%/model.test.out : $(MODEL_BASE).%/model/moses.ini 
+	cat $(FACTORED_TEST).$(L1) | moses -f $< > $@ 2> $@.log
+
+$(MODEL_BASE).%/model.optimized.test.out : $(MODEL_BASE).%/model.optimized/moses.ini 
 	cat $(FACTORED_TEST).$(L1) | moses -f $< > $@ 2> $@.log
 
 $(MODEL_BASE).%.test.out.bleu : $(MODEL_BASE).%.test.out
-	cat $< | multi-bleu.perl $(UNFACTORED_TEST).$(L2) > $@ 2> $@.log
+	cat $< | $(SCRIPTS_ROOTDIR)/generic/multi-bleu.perl $(UNFACTORED_TEST).$(L2) > $@ 2> $@.log
 
 $(MODEL_BASE).%.test.out.meteor : $(MODEL_BASE).%.test.out
 	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(UNFACTORED_TEST).$(L2) -l $(L2) > $@

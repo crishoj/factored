@@ -12,11 +12,11 @@
 #
 
 # Arguments from environment
-L		?= da
-PREFIX 		?= europarl.cleaned
-DEV_SENTS	?= 2000
-TEST_SENTS	?= 10000
-LM_SUFFIX	?= blm.mmap
+L		?= @L1@
+PREFIX 		?= @CORPUS_PREFIX@
+DEV_SENTS	?= @DEV_SENTS@
+TEST_SENTS	?= @TEST_SENTS@
+LM_SUFFIX	?= @LM_SUFFIX@
 
 # Derived variables
 PWD 		= $(shell pwd)
@@ -34,18 +34,17 @@ WSD_LM	    	= train/$(CORPUS).wsd.$(LM_SUFFIX)
 
 LMS 		= $(LM) $(LEMMA_LM) $(POS_LM) $(CLUSTER_LM) $(DEPREL_LM) $(WSD_LM)
 
-FACTOR_TOOL 	= ../../factor
+FACTOR_TOOL 	= ../../bin/factor
+SPLIT		= ../../bin/split.sh
 
 CSTLEMMA 	= /opt/cstlemma/cstlemma
-CSTLEMMA_OPTS 	= -t- -b '$$w' -B '$$w' -c '$$b1[[$$b?]~1$$B]$$s' -f /opt/cstlemma/da/flexrules -d /opt/cstlemma/da/dict -eU
+CSTLEMMA_OPTS 	= -t- -b '$$w' -B '$$w' -c '$$b1[[$$b?]~1$$B]$$s' -f /opt/cstlemma/da/flexrules -d /opt/cstlemma/da/dict 
 
 LEMMAGEN 	= /nyusers/anders/stemmers/v2/lemmagen/binary/linux/lemmatize
 LEMMAGEN_OPTS 	= -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin -f wpl
 
 SRILM_OPTIONS 	= -order 3 -interpolate -kndiscount -unk 
 SRILM_OPTIONS2 	= -order 3 -interpolate 
-
-SPLIT_CMD	= ../../split.sh $(DEV_SENTS) $(TEST_SENTS)
 
 .DELETE_ON_ERROR : # don't leave half-baked files around
 
@@ -88,29 +87,21 @@ $(CLUSTER_PATHS) : $(CORPUS)
 %.wsd : %.lemma %.wsd.output
 	$(FACTOR_TOOL) --trace wsd_extract $^ --output $@
 
-%.lm : %
+%.$(L).lm : %.$(L)
 	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
 
-# Quantized LM (see http://www.statmt.org/moses/?n=FactoredTraining.BuildingLanguageModel#ntoc6)
-%.qlm : %.lm
-	quantize-lm $< $@
-
-# Binary LM
-%.qblm : %.qlm
-	compile-lm $< $@
-
 # Binary LM for memory mapping with KenLM
-%.blm.mmap : %.lm
+%.kblm.mmap : %.lm
 	build_binary $< $@
 
 train/% : %
-	$(SPLIT_CMD) $<
+	$(SPLIT) $(DEV_SENTS) $(TEST_SENTS) $<
 
 dev/% : %
-	$(SPLIT_CMD) $<
+	$(SPLIT) $(DEV_SENTS) $(TEST_SENTS) $<
 
 test/% : %
-	$(SPLIT_CMD) $<
+	$(SPLIT) $(DEV_SENTS) $(TEST_SENTS) $<
 
 lms : $(LMS)
 
