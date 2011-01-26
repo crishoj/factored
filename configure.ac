@@ -15,9 +15,9 @@ AC_ARG_WITH(lm,
            )
 
 AC_ARG_WITH(lm-suffix,
-            [AC_HELP_STRING([--with-lm-suffix=SUFFIX], [what sort of language model to use (e.g. blm.mmap for memory mapped)])],
+            [AC_HELP_STRING([--with-lm-suffix=SUFFIX], [what sort of language model to use (e.g. kblm.mmap for memory mapped KenLM)])],
             [LM_SUFFIX=$withval],
-            [LM_SUFFIX=blm.mmap]
+            [LM_SUFFIX=kblm.mmap]
            )
 
 AC_ARG_WITH(source-lang,
