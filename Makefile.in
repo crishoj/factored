@@ -51,6 +51,9 @@ deprel		= 4
 wsd		= 5
 FACTORS 	= pos cluster deprel wsd lemma
 FACTOR_MAX	= 5
+# Logging
+LOG_INIT_CMD	= mkdir -p $(dir $@)
+LOG_CMD		= 2> $@.log >&2
 # Moses
 LM_SUFFIX	= kblm.mmap
 LM_BASE 	= $(CORPUS_DIR)/train/$(LM_PREFIX).$(L2)
@@ -65,28 +68,28 @@ FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-f
 FACTORED_DEPS	= $(FACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX) 
 UNFACTORED_DEPS	= $(UNFACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX) 
 TRAIN_CMD	= train-model.perl
-CLEAN_MODEL_CMD	= rm -f $(dir $@)extract.gz $(dir $@)extract.inv.gz # rm -rf $(dir $@)
+CLEAN_MODEL_CMD	= rm -f $(dir $@)extract.gz $(dir $@)extract.inv.gz 
+USE_KENLM_CMD	= perl -i'.bak' -pe 's/0 (\d \d \D.+lm.mmap)/8 \1/g' $@
+PRE_TRAIN_CMD	= $(LOG_INIT_CMD) ; $(CLEAN_MODEL_CMD)
+POST_TRAIN_CMD	= $(USE_KENLM_CMD)
 # Mert
 MERT_OPTS 	= --mertdir=@MERT_DIR@ 
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
 # Testing
-FACTOR_CONFIGS 	= tb ts as.ts tb.alt tb.alt.gen
+FACTOR_CONFIGS 	= tb ts as.ts tb.alt # tb.alt.gen
 MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(FACTORS))) 
 MODELS 		= unfactored $(MODEL_CONFIGS) combined # gen_cluster gen_cluster_deprel
 MODEL_BASES 	= $(addprefix $(MODEL_BASE)., $(MODELS))
 TESTS 		= $(addsuffix /model.test.out, $(MODEL_BASES)) # $(addsuffix /model.optimized.test.out, $(MODEL_BASES))
 BLEUS 		= $(addsuffix .bleu, $(TESTS))
 METEORS 	= $(addsuffix .meteor, $(TESTS))
-# Logging
-LOG_INIT_CMD	= mkdir -p $(dir $@)
-LOG_CMD		= 2> $@.log >&2
 
 
 .DELETE_ON_ERROR : # don't leave half-baked files around
 
 .SECONDARY : # keep "intermediate" files (for reuse)
 
-.PHONY: corpora all eval bleu meteor clean clean-optimized clean-eval
+.PHONY: corpora all eval bleu meteor clean clean-optimized clean-eval 
 
 #
 # Corpus stuff
@@ -100,22 +103,22 @@ $(CORPUS_MAKEFILE) : $(CORPUS_DIR)
 	rm -f $@
 	cd $(CORPUS_DIR) && ln -s ../Makefile 
 
-$(CORPUS_DIR)/train/$(LM_PREFIX).$(L1).%.$(LM_SUFFIX) : $(CORPUS_MAKEFILE)
+$(CORPUS_DIR)/train/$(LM_PREFIX).$(L1).%.$(LM_SUFFIX) : 
 	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make train/$(LM_PREFIX).$(L1).$*.$(LM_SUFFIX)
 
-$(CORPUS_DIR)/train/$(LM_PREFIX).$(L2).%.$(LM_SUFFIX) : $(CORPUS_MAKEFILE)
+$(CORPUS_DIR)/train/$(LM_PREFIX).$(L2).%.$(LM_SUFFIX) : 
 	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make train/$(LM_PREFIX).$(L2).$*.$(LM_SUFFIX)
 
-$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : $(CORPUS_MAKEFILE)
+$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : 
 	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L1).$*
 
-$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L2).% : $(CORPUS_MAKEFILE)
+$(CORPUS_DIR)/$(CORPUS_PREFIX).$(L2).% : 
 	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L2).$*
 
-$(CORPUS_DIR)/%.$(L1) : $(CORPUS_MAKEFILE)
+$(CORPUS_DIR)/%.$(L1) : 
 	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $*.$(L1)
 
-$(CORPUS_DIR)/%.$(L2) : $(CORPUS_MAKEFILE)
+$(CORPUS_DIR)/%.$(L2) : 
 	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $*.$(L2)
 
 #
@@ -123,55 +126,55 @@ $(CORPUS_DIR)/%.$(L2) : $(CORPUS_MAKEFILE)
 #
 
 $(MODEL_BASE).unfactored/model/moses.ini : $(UNFACTORED_DEPS) 
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).unfactored $(UNFACTORED_OPTS) $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 # Generic rule for an additional translation factor on both sides
 $(MODEL_BASE).tb.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX)
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form),$($*)-$(form),$($*) --lm $($*):3:$(LM_PATH).$*.$(LM_SUFFIX) $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 # Generic rule for an additional translation and alignment factor on the source side only
 $(MODEL_BASE).as.ts.%/model/moses.ini : $(FACTORED_DEPS) 
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --alignment-factors $(form),$($*)-$(form) --translation-factors $(form),$($*)-$(form) $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 # Generic rule for an additional translation factor on the source side only
 $(MODEL_BASE).ts.%/model/moses.ini : $(FACTORED_DEPS) 
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form),$($*)-$(form) $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 # An additional translation factor as an alternative decoding path
 $(MODEL_BASE).tb.alt.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form)-$(form),$($*)+$($*)-$(form),$($*) --lm $($*):3:$(LM_PATH).$*.$(LM_SUFFIX) --decoding-steps t0:t1 $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 # An additional translation factor as an alternative decoding path, with generation
 $(MODEL_BASE).tb.alt.gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) --translation-factors $(form)-$(form)+$($*)-$($*) --lm $($*):3:$(LM_PATH).$*.$(LM_SUFFIX) --generation-factors $(form)-$($*) --decoding-steps t0,g0:t1 $(LOG_CMD) 
+	$(POST_TRAIN_CMD)
 
 # Complex models
 $(MODEL_BASE).combined/model/moses.ini : $(FACTORED_DEPS) $(FACTOR_LMS)
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).combined $(FACTORED_OPTS) --translation-factors $(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd)-$(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd) $(LM_OPT_FACTORS) $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 $(MODEL_BASE).gen_cluster/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.$(LM_SUFFIX) 
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).gen_cluster $(FACTORED_OPTS) --translation-factors $(form)-$(form)+$(cluster)-$(cluster) --generation-factors $(form)-$(cluster) --decoding-steps t0,g0,t1 $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 $(MODEL_BASE).gen_cluster_deprel/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.$(LM_SUFFIX) $(LM_BASE).deprel.$(LM_SUFFIX)
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(TRAIN_CMD) --root-dir $(MODEL_BASE).gen_cluster_deprel $(FACTORED_OPTS) --translation-factors $(form)-$(form)+$(deprel),$(cluster)-$(deprel),$(cluster) --generation-factors $(form)-$(deprel),$(cluster) --decoding-steps t0,g0,t1 $(LOG_CMD)
+	$(POST_TRAIN_CMD)
 
 baseline : unfactored_model
 
@@ -182,13 +185,11 @@ baseline : unfactored_model
 # MERT
 #
 $(MODEL_BASE).unfactored/model.optimized/moses.ini : $(MODEL_BASE).unfactored/model/moses.ini
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(MERT_CMD) --working-dir=$(MODEL_BASE).unfactored/model.optimized $(UNFACTORED_DEV).$(L1) $(UNFACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
 $(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.ini
-	$(CLEAN_MODEL_CMD) 
-	$(LOG_INIT_CMD)
+	$(PRE_TRAIN_CMD) 
 	$(MERT_CMD) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
 #
