@@ -91,7 +91,7 @@ $(CLUSTER_PATHS) : $(CORPUS)
 	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
 
 # Binary LM for memory mapping with KenLM
-%.kblm.mmap : %.lm
+%.kblm : %.lm
 	build_binary $< $@
 
 train/% : %
