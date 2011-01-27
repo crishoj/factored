@@ -21,10 +21,6 @@ LM_PREFIX	?= @LM_PREFIX@
 
 ### End User configurable options ###
 
-ifndef LM_PREFIX
-LM_PREFIX = $(CORPUS_PREFIX)
-endif
-
 # Derived variables
 PAIR 		= $(L1)-$(L2)
 CORPUS_DIR 	= corpus/$(PAIR)
@@ -62,6 +58,7 @@ LM_PATH		= $(shell pwd)/$(LM_BASE)
 LM_OPT_FACTORS	= $(foreach FACTOR, $(FACTORS), --lm $($(FACTOR)):3:$(LM_PATH).$(FACTOR).$(LM_SUFFIX))
 FACTOR_LMS	= $(foreach FACTOR, $(FACTORS), $(LM_BASE).$(FACTOR).$(LM_SUFFIX))
 MOSES 		= @MOSES_BIN@
+MOSES_SCRIPTS	= @MOSES_SCRIPTS@
 MOSES_OPTS	= --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 --lm $(form):3:$(LM_PATH).$(LM_SUFFIX)
 UNFACTORED_OPTS	= $(MOSES_OPTS) --corpus $(shell pwd)/$(UNFACTORED_TRAIN) 
 FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-factor-max $(FACTOR_MAX)
@@ -217,7 +214,7 @@ $(MODEL_BASE).%/model.optimized.test.out : $(MODEL_BASE).%/model.optimized/moses
 	cat $(FACTORED_TEST).$(L1) | moses -f $< > $@ 2> $@.log
 
 $(MODEL_BASE).%.test.out.bleu : $(MODEL_BASE).%.test.out
-	cat $< | $(SCRIPTS_ROOTDIR)/generic/multi-bleu.perl $(UNFACTORED_TEST).$(L2) > $@ 2> $@.log
+	cat $< | $(MOSES_SCRIPTS)/generic/multi-bleu.perl $(UNFACTORED_TEST).$(L2) > $@ 2> $@.log
 
 $(MODEL_BASE).%.test.out.meteor : $(MODEL_BASE).%.test.out
 	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(UNFACTORED_TEST).$(L2) -l $(L2) > $@

@@ -54,11 +54,22 @@ AC_ARG_WITH(mert-dir,
             [MERT_DIR=$withval],
             [MERT_DIR=`dirname $MERT_BIN`]
            )
-
 AC_MSG_NOTICE([Using ${MERT_DIR} for MERT_DIR])
 
+AC_ARG_WITH(moses-scripts,
+            [AC_HELP_STRING([--with-moses-scripts=DIR], [location of moses scripts])],
+            [MOSES_SCRIPTS=$withval]
+           )
+
+AC_PATH_PROG(MULTI_BLEU, multi-bleu.perl, , $MOSES_SCRIPTS/generic)
+if test -z "$MULTI_BLEU"; then
+    AC_MSG_ERROR([moses scripts could not be found, please specify location])
+fi
+
+AC_MSG_NOTICE([Using ${MOSES_SCRIPTS} for MOSES_SCRIPTS])
+
 AC_PATH_PROGS(MOSES_BIN, moses)
-if test -z "moses"; then
+if test -z "$MOSES_BIN"; then
     AC_MSG_ERROR([moses decoder could not be found, please install or adjust PATH])
 fi
 
@@ -72,6 +83,7 @@ AC_SUBST(DEV_SENTS)
 AC_SUBST(MERT_BIN)
 AC_SUBST(MERT_DIR)
 AC_SUBST(MOSES_BIN)
+AC_SUBST(MOSES_SCRIPTS)
 
 AC_CONFIG_FILES([
     Makefile
