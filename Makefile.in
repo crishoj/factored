@@ -177,7 +177,7 @@ $(MODEL_BASE).unfactored/model.optimized/moses.ini : $(MODEL_BASE).unfactored/mo
 	$(PRE_TRAIN_CMD) 
 	$(MERT_CMD) --working-dir=$(MODEL_BASE).unfactored/model.optimized $(UNFACTORED_DEV).$(L1) $(UNFACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
-$(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.ini
+$(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.binarized.ini
 	$(PRE_TRAIN_CMD) 
 	$(MERT_CMD) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 

@@ -4,7 +4,7 @@
 .SECONDARY : # keep "intermediate" files (for reuse)
 
 phrase_tables := $(wildcard phrase-table.*.gz)
-binary_phrase_tables = $(patsubst %.gz,%.bin,$(phrase_tables))
+binary_phrase_tables = $(patsubst %.gz,%.binphr.idx,$(phrase_tables))
 
 #
 # Binary phrase tables
@@ -12,7 +12,7 @@ binary_phrase_tables = $(patsubst %.gz,%.bin,$(phrase_tables))
 %.bin : %.gz
 	zcat $< | LC_ALL=C sort | processPhraseTable -ttable 0 0 - -nscores 5 -out $@
 
-moses.binarised.ini : moses.ini $(binary_phrase_tables) 
+moses.binarized.ini : moses.ini $(binary_phrase_tables) 
 	cp $< $@
-	perl -i'.bak' -pe 's/0 (.+phrase-table.+)\.gz/1 \1.bin/g' $@ 	# use binary phrase table
+	perl -i'.bak' -pe 's/0 (.+phrase-table.+)\.gz/1 \1/g' $@ 	# use binary phrase table
 	perl -i'.bak' -pe 's/0 (\d \d \D.+lm.mmap)/9 \1/g' $@		# use binary KenLM language models
