@@ -8,17 +8,21 @@ AC_ARG_WITH(corpus,
             [CORPUS_PREFIX=$withval],
             [CORPUS_PREFIX=europarl.cleaned]
            )
+AC_MSG_NOTICE([Using corpus: ${CORPUS_PREFIX}])
 
 AC_ARG_WITH(lm,
             [AC_HELP_STRING([--with-lm=PREFIX], [(optionally) use the language models from another corpus])],
-            [LM_PREFIX=$withval]
+            [LM_PREFIX=$withval],
+	    [LM_PREFIX=$CORPUS_PREFIX]
            )
+AC_MSG_NOTICE([Using language model: ${LM_PREFIX}])
 
 AC_ARG_WITH(lm-suffix,
             [AC_HELP_STRING([--with-lm-suffix=SUFFIX], [what sort of language model to use (e.g. kblm.mmap for memory mapped KenLM)])],
             [LM_SUFFIX=$withval],
             [LM_SUFFIX=kblm.mmap]
            )
+AC_MSG_NOTICE([Using language model type: ${LM_SUFFIX}])
 
 AC_ARG_WITH(source-lang,
             [AC_HELP_STRING([--with-source-lang=LANG], [source language code (e.g. "da")])],
@@ -88,6 +92,7 @@ AC_SUBST(MOSES_SCRIPTS)
 AC_CONFIG_FILES([
     Makefile
     corpus/Makefile
+    models/Makefile
 ])
 
 AC_OUTPUT()
