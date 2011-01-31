@@ -68,7 +68,7 @@ FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(shell pwd)/$(FACTORED_TRAIN) --input-f
 FACTORED_DEPS	= $(FACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX) 
 UNFACTORED_DEPS	= $(UNFACTORED_CORPORA) $(LM_BASE).$(LM_SUFFIX) 
 TRAIN_CMD	= train-model.perl
-CLEAN_MODEL_CMD	= rm -f $(dir $@)extract.gz $(dir $@)extract.inv.gz 
+CLEAN_MODEL_CMD	= rm -f $(dir $@)extract*.gz 
 PRE_TRAIN_CMD	= $(LOG_INIT_CMD) ; $(CLEAN_MODEL_CMD)
 # Mert
 MERT_OPTS 	= --mertdir=@MERT_DIR@ 
@@ -94,30 +94,30 @@ METEORS 	= $(addsuffix .meteor, $(TESTS))
 #
 
 corpora : $(CORPUS_MAKEFILE)
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) make all
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) make all
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) $(MAKE) all
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) $(MAKE) all
 
 $(CORPUS_MAKEFILE) : $(CORPUS_DIR)
 	rm -f $@
 	cd $(CORPUS_DIR) && ln -s ../Makefile 
 
 $(CORPUS_DIR)/train/$(LM_PREFIX).$(L1).%.$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make train/$(LM_PREFIX).$(L1).$*.$(LM_SUFFIX)
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM_PREFIX).$(L1).$*.$(LM_SUFFIX)
 
 $(CORPUS_DIR)/train/$(LM_PREFIX).$(L2).%.$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make train/$(LM_PREFIX).$(L2).$*.$(LM_SUFFIX)
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM_PREFIX).$(L2).$*.$(LM_SUFFIX)
 
 $(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L1).$*
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(CORPUS_PREFIX).$(L1).$*
 
 $(CORPUS_DIR)/$(CORPUS_PREFIX).$(L2).% : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $(CORPUS_PREFIX).$(L2).$*
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(CORPUS_PREFIX).$(L2).$*
 
 $(CORPUS_DIR)/%.$(L1) : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $*.$(L1)
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $*.$(L1)
 
 $(CORPUS_DIR)/%.$(L2) : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) make $*.$(L2)
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $*.$(L2)
 
 #
 # Models 
@@ -185,7 +185,7 @@ $(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.binarize
 # Binarization
 #
 $(MODEL_BASE).%/model/moses.binarized.ini : $(MODEL_BASE).%/model/moses.ini $(MODEL_BASE).%/model/Makefile
-	cd $(shell dirname $@) && make moses.binarized.ini
+	cd $(shell dirname $@) && $(MAKE) moses.binarized.ini
 
 $(MODEL_BASE).%/model/Makefile : 
 	rm -f $@
@@ -194,7 +194,7 @@ $(MODEL_BASE).%/model/Makefile :
 #
 # Testing 
 #
-$(MODEL_BASE).unfactored/model.test.out : $(MODEL_BASE).unfactored/model/moses.ini 
+$(MODEL_BASE).unfactored/model.test.out : $(MODEL_BASE).unfactored/model/moses.binarized.ini 
 	cat $(UNFACTORED_TEST).$(L1) | moses -f $< > $@ 2> $@.log
 
 $(MODEL_BASE).unfactored/model.optimized.test.out : $(MODEL_BASE).unfactored/model.optimized/moses.ini 
