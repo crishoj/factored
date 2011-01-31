@@ -10,7 +10,6 @@ binary_phrase_tables = $(patsubst %.gz,%.binphr.idx,$(phrase_tables))
 # Binary phrase tables
 #
 phrase-table.%.binphr.idx : phrase-table.%.gz
-#	zcat $< | LC_ALL=C sort | processPhraseTable -ttable 0 0 - -nscores 5 -out phrase-table.%
 	zcat $< | processPhraseTable -ttable 0 0 - -nscores 5 -out phrase-table.%
 
 moses.binarized.ini : moses.ini $(binary_phrase_tables) 
