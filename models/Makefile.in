@@ -3,7 +3,7 @@
 
 .SECONDARY : # keep "intermediate" files (for reuse)
 
-phrase_tables := $(wildcard phrase-table.*.gz)
+phrase_tables := $(wildcard phrase-table*.gz)
 binary_phrase_tables = $(patsubst %.gz,%.binphr.idx,$(phrase_tables))
 
 #
@@ -11,6 +11,9 @@ binary_phrase_tables = $(patsubst %.gz,%.binphr.idx,$(phrase_tables))
 #
 phrase-table.%.binphr.idx : phrase-table.%.gz
 	zcat $< | processPhraseTable -ttable 0 0 - -nscores 5 -out phrase-table.%
+
+phrase-table.binphr.idx : phrase-table.gz
+	zcat $< | processPhraseTable -ttable 0 0 - -nscores 5 -out phrase-table
 
 moses.binarized.ini : moses.ini $(binary_phrase_tables) 
 	cp $< $@
