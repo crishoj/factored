@@ -106,17 +106,17 @@ METEORS 	= $(addsuffix .meteor, $(TESTS))
 #
 
 corpora : $(CORPUS_MAKEFILE)
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) $(MAKE) all
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) $(MAKE) all
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM) $(MAKE) all
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM) $(MAKE) all
 
 $(CORPUS_MAKEFILE) : $(CORPUS_DIR)
 	cp corpus/Makefile $@
 
-$(CORPUS_DIR)/train/$(LM_PREFIX).$(L1).%.$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM_PREFIX).$(L1).$*.$(LM_SUFFIX)
+$(CORPUS_DIR)/train/$(LM).$(L1).%.$(LM_SUFFIX) : 
+	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM).$(L1).$*.$(LM_SUFFIX)
 
-$(CORPUS_DIR)/train/$(LM_PREFIX).$(L2).%.$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM_PREFIX).$(L2).$*.$(LM_SUFFIX)
+$(CORPUS_DIR)/train/$(LM).$(L2).%.$(LM_SUFFIX) : 
+	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM).$(L2).$*.$(LM_SUFFIX)
 
 $(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : 
 	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(CORPUS_PREFIX).$(L1).$*
