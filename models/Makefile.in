@@ -15,7 +15,10 @@ phrase-table.%.binphr.idx : phrase-table.%.gz
 phrase-table.binphr.idx : phrase-table.gz
 	zcat $< | processPhraseTable -ttable 0 0 - -nscores 5 -out phrase-table
 
-moses.binarized.ini : moses.ini $(binary_phrase_tables) 
+moses.binarized.ini : moses.ini 
 	cp $< $@
-	perl -i'.bak' -pe 's/0 (.+phrase-table.*)\.gz/1 \1/g' $@ 	# use binary phrase table
 	perl -i'.bak' -pe 's/0 (\d \d \D.+lm.mmap)/9 \1/g' $@		# use binary KenLM language models
+
+
+
+#	perl -i'.bak' -pe 's/0 (.+phrase-table.*)\.gz/1 \1/g' $@ 	# use binary phrase table
