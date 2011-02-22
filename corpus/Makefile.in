@@ -13,7 +13,7 @@
 
 # Arguments from environment
 L		?= @L1@
-PREFIX 		?= @CORPUS_PREFIX@
+PREFIX 		?= @PREFIX@
 DEV_SENTS	?= @DEV_SENTS@
 TEST_SENTS	?= @TEST_SENTS@
 LM_SUFFIX	?= @LM_SUFFIX@
@@ -21,16 +21,15 @@ LM_SUFFIX	?= @LM_SUFFIX@
 # Derived variables
 PWD 		= $(shell pwd)
 PAIR 		= $(shell basename $(PWD))
-CORPUS 		= $(PREFIX).$(L)
 CLUSTER_PATHS 	= clusters/$(L)/$(PREFIX)-c1000-p1.out/paths
 DEPPARSE 	= ../../../stacked_dep/data/$(L)/europarl-$(PAIR)/mst2.out.conll
 
-LM	    	= train/$(CORPUS).$(LM_SUFFIX)
-LEMMA_LM    	= train/$(CORPUS).lemma.$(LM_SUFFIX)
-POS_LM	    	= train/$(CORPUS).pos.$(LM_SUFFIX)
-DEPREL_LM  	= train/$(CORPUS).deprel.$(LM_SUFFIX)
-CLUSTER_LM  	= train/$(CORPUS).cluster.$(LM_SUFFIX)
-WSD_LM	    	= train/$(CORPUS).wsd.$(LM_SUFFIX)
+LM	    	= train/$(PREFIX).$(LM_SUFFIX)
+LEMMA_LM    	= train/$(PREFIX).lemma.$(LM_SUFFIX)
+POS_LM	    	= train/$(PREFIX).pos.$(LM_SUFFIX)
+DEPREL_LM  	= train/$(PREFIX).deprel.$(LM_SUFFIX)
+CLUSTER_LM  	= train/$(PREFIX).cluster.$(LM_SUFFIX)
+WSD_LM	    	= train/$(PREFIX).wsd.$(LM_SUFFIX)
 
 LMS 		= $(LM) $(LEMMA_LM) $(POS_LM) $(CLUSTER_LM) $(DEPREL_LM) $(WSD_LM)
 
@@ -52,6 +51,9 @@ SRILM_OPTIONS2 	= -order 3 -interpolate
 
 .PHONY : lms clean-lms factored unfactored
 
+%.cleaned.lowercased.$(L) : %.cleaned.$(L)
+	lowercase.perl < $< > $@
+
 %.da.lemma : %.da 
 	$(CSTLEMMA) $(CSTLEMMA_OPTS) -i $< -o $@
 
@@ -65,12 +67,12 @@ SRILM_OPTIONS2 	= -order 3 -interpolate
 %.en.wpl : %.en 
 	$(FACTOR_TOOL) --trace spl_to_wpl $< --output $@
 
-$(CORPUS).pos $(CORPUS).deprel : $(DEPPARSE)
-	$(FACTOR_TOOL) --trace conll_extract $< --output-pos $(CORPUS).pos --output-deprel $(CORPUS).deprel
+$(PREFIX).pos $(PREFIX).deprel : $(DEPPARSE)
+	$(FACTOR_TOOL) --trace conll_extract $< --output-pos $(PREFIX).pos --output-deprel $(PREFIX).deprel
 
-$(CLUSTER_PATHS) : $(CORPUS)
+$(CLUSTER_PATHS) : $(PREFIX)
 	mkdir -p clusters/$(L)
-	wcluster --text $(CORPUS) --c 1000 --ms-per-line 1000
+	wcluster --text $(PREFIX) --c 1000 --ms-per-line 1000
 
 %.cluster : % $(CLUSTER_PATHS)
 	$(FACTOR_TOOL) cluster_extract --output $@ $^
@@ -94,7 +96,7 @@ $(CLUSTER_PATHS) : $(CORPUS)
 %.kblm : %.lm
 	build_binary $< $@
 
-train/% : %
+train/%.$(L) : %.$(L)
 	$(SPLIT) $(DEV_SENTS) $(TEST_SENTS) $<
 
 dev/% : %

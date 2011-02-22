@@ -16,8 +16,8 @@
 # Source and target language 
 L1		?= @L1@
 L2		?= @L2@
-CORPUS_PREFIX	?= @CORPUS_PREFIX@
-LM_PREFIX	?= @LM_PREFIX@
+CORPUS		?= @CORPUS@
+LM		?= @LM@
 
 ### End User configurable options ###
 
@@ -25,6 +25,7 @@ LM_PREFIX	?= @LM_PREFIX@
 PAIR 		= $(L1)-$(L2)
 CORPUS_DIR 	= corpus/$(PAIR)
 MODEL_DIR	= models/$(PAIR)
+CORPUS_PREFIX	= $(CORPUS).cleaned.lowercased
 MODEL_BASE	= $(MODEL_DIR)/$(CORPUS_PREFIX)
 CORPUS_MAKEFILE = $(CORPUS_DIR)/Makefile
 UNFACTORED_TRAIN= $(CORPUS_DIR)/train/$(CORPUS_PREFIX)
@@ -44,19 +45,25 @@ FACTORED_CORPORA = \
 
 # Factors
 form		= 0
-lemma		= 1
-pos		= 2
-cluster		= 3
-deprel		= 4
-wsd		= 5
+#lemma		= 1
+#pos		= 2
+#cluster		= 3
+#deprel		= 4
+#wsd		= 5
 FACTORS 	= pos cluster deprel wsd lemma
+
+i=1 ; for f in $(FACTORS); do \
+	((i = i + 1)) ; \
+	$(f) := $(i) ; \
+done
+
 FACTOR_MAX	= 5
 # Logging
 LOG_INIT_CMD	= mkdir -p $(dir $@)
 LOG_CMD		= 2> $@.log >&2
 # Moses
 LM_SUFFIX	= kblm.mmap
-LM_BASE 	= $(CORPUS_DIR)/train/$(LM_PREFIX).$(L2)
+LM_BASE 	= $(CORPUS_DIR)/train/$(LM).$(L2)
 LM_PATH		= $(shell pwd)/$(LM_BASE)
 LM_OPT_FACTORS	= $(foreach FACTOR, $(FACTORS), --lm $($(FACTOR)):3:$(LM_PATH).$(FACTOR).$(LM_SUFFIX))
 FACTOR_LMS	= $(foreach FACTOR, $(FACTORS), $(LM_BASE).$(FACTOR).$(LM_SUFFIX))

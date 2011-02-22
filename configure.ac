@@ -5,17 +5,17 @@ AM_INIT_AUTOMAKE(FactoredSMT, 0.1)
 
 AC_ARG_WITH(corpus,
             [AC_HELP_STRING([--with-corpus=PREFIX], [(optional) name (prefix) of the corpus])],
-            [CORPUS_PREFIX=$withval],
-            [CORPUS_PREFIX=europarl.cleaned]
+            [CORPUS=$withval],
+            [CORPUS=europarl.cleaned]
            )
-AC_MSG_NOTICE([Using corpus: ${CORPUS_PREFIX}])
+AC_MSG_NOTICE([Using corpus: ${CORPUS}])
 
 AC_ARG_WITH(lm,
             [AC_HELP_STRING([--with-lm=PREFIX], [(optionally) use the language models from another corpus])],
-            [LM_PREFIX=$withval],
-	    [LM_PREFIX=$CORPUS_PREFIX]
+            [LM=$withval],
+	    [LM=$CORPUS]
            )
-AC_MSG_NOTICE([Using language model: ${LM_PREFIX}])
+AC_MSG_NOTICE([Using language model: ${LM}])
 
 AC_ARG_WITH(lm-suffix,
             [AC_HELP_STRING([--with-lm-suffix=SUFFIX], [what sort of language model to use (e.g. kblm.mmap for memory mapped KenLM)])],
@@ -48,6 +48,8 @@ AC_ARG_WITH(dev-sents,
             [DEV_SENTS=2000]
            )
 
+AC_MSG_NOTICE([Translating from '${L1}' to '${L2}', using ${TEST_SENTS} sentences for testing and ${DEV_SENTS} sentences for development])
+
 AC_PATH_PROGS(MERT_BIN, mert)
 if test -z "mert"; then
     AC_MSG_ERROR([mert binary could not be found, please install or adjust PATH])
@@ -62,7 +64,8 @@ AC_MSG_NOTICE([Using ${MERT_DIR} for MERT_DIR])
 
 AC_ARG_WITH(moses-scripts,
             [AC_HELP_STRING([--with-moses-scripts=DIR], [location of moses scripts])],
-            [MOSES_SCRIPTS=$withval]
+            [MOSES_SCRIPTS=$withval],
+	    [MOSES_SCRIPTS=/opt/mosesdecoder/scripts]
            )
 
 AC_PATH_PROG(MULTI_BLEU, multi-bleu.perl, , $MOSES_SCRIPTS/generic)
@@ -77,8 +80,8 @@ if test -z "$MOSES_BIN"; then
     AC_MSG_ERROR([moses decoder could not be found, please install or adjust PATH])
 fi
 
-AC_SUBST(CORPUS_PREFIX)
-AC_SUBST(LM_PREFIX)
+AC_SUBST(CORPUS)
+AC_SUBST(LM)
 AC_SUBST(LM_SUFFIX)
 AC_SUBST(L1)
 AC_SUBST(L2)
