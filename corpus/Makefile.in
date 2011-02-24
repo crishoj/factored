@@ -13,6 +13,7 @@
 
 # Arguments from environment
 L		?= @L1@
+OL		?= @L2@
 PREFIX 		?= @PREFIX@
 DEV_SENTS	?= @DEV_SENTS@
 TEST_SENTS	?= @TEST_SENTS@
@@ -40,7 +41,7 @@ CSTLEMMA 	= /opt/cstlemma/cstlemma
 CSTLEMMA_OPTS 	= -t- -b '$$w' -B '$$w' -c '$$b1[[$$b?]~1$$B]$$s' -f /opt/cstlemma/da/flexrules -d /opt/cstlemma/da/dict 
 
 LEMMAGEN 	= /nyusers/anders/stemmers/v2/lemmagen/binary/linux/lemmatize
-LEMMAGEN_OPTS 	= -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin -f wpl
+LEMMAGEN_OPTS 	= -f wpl
 
 SRILM_OPTIONS 	= -order 3 -interpolate -kndiscount -unk 
 SRILM_OPTIONS2 	= -order 3 -interpolate 
@@ -51,20 +52,36 @@ SRILM_OPTIONS2 	= -order 3 -interpolate
 
 .PHONY : lms clean-lms factored unfactored
 
-%.cleaned.lowercased.$(L) : %.cleaned.$(L)
+%.tok.$(L) : %.raw.$(L)
+	tokenizer.perl -l $(L) < $< > $@
+
+%.tok.$(OL) : %.raw.$(OL)
+	tokenizer.perl -l $(OL) < $< > $@
+
+%.clean.$(L) %.clean.$(OL) : %.tok.$(L) %.tok.$(OL)
+	clean-corpus-n.perl $*.tok $(L) $(OL) $*.clean 1 40
+
+%.clean.$(L) : %.lowercased.$(L)
 	lowercase.perl < $< > $@
 
-%.da.lemma : %.da 
+%.lowercased.$(L) : %.clean.$(L)
+	lowercase.perl < $< > $@
+
+%.da.lemma : %.lowercased.da 
 	$(CSTLEMMA) $(CSTLEMMA_OPTS) -i $< -o $@
 
-%.en.lemma : %.en.lemmatize.out
+%.lemma : %.lemmatize.out
 	 $(FACTOR_TOOL) --trace col_to_spl --col 2 --fallback 1 $< --output $@
 
 %.en.lemmatize.out : %.en.wpl
 	rm -f $@
-	$(LEMMAGEN) $(LEMMAGEN_OPTS) $< $@
+	$(LEMMAGEN) $(LEMMAGEN_OPTS) -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-me-en.bin $< $@
 
-%.en.wpl : %.en 
+%.de.lemmatize.out : %.de.wpl
+	rm -f $@
+	$(LEMMAGEN) $(LEMMAGEN_OPTS) -l /nyusers/anders/stemmers/v2/data/lemmatizer/lem-m-ge.bin $< $@
+
+%.$(L).wpl : %.lowercased.$(L)
 	$(FACTOR_TOOL) --trace spl_to_wpl $< --output $@
 
 $(PREFIX).pos $(PREFIX).deprel : $(DEPPARSE)
@@ -89,12 +106,12 @@ $(CLUSTER_PATHS) : $(PREFIX)
 %.wsd : %.lemma %.wsd.output
 	$(FACTOR_TOOL) --trace wsd_extract $^ --output $@
 
-%.lm : %
-	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
-
 # Binary LM for memory mapping with KenLM
 %.kblm : %.lm
 	build_binary $< $@
+
+%.lm : %
+	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
 
 train/%.$(L) : %.$(L)
 	$(SPLIT) $(DEV_SENTS) $(TEST_SENTS) $<

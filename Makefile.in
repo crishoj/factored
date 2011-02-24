@@ -25,7 +25,7 @@ LM		?= @LM@
 PAIR 		= $(L1)-$(L2)
 CORPUS_DIR 	= corpus/$(PAIR)
 MODEL_DIR	= models/$(PAIR)
-CORPUS_PREFIX	= $(CORPUS).cleaned.lowercased
+CORPUS_PREFIX	= $(CORPUS)
 MODEL_BASE	= $(MODEL_DIR)/$(CORPUS_PREFIX)
 CORPUS_MAKEFILE = $(CORPUS_DIR)/Makefile
 UNFACTORED_TRAIN= $(CORPUS_DIR)/train/$(CORPUS_PREFIX)
@@ -47,10 +47,11 @@ FACTORED_CORPORA = \
 form		= 0
 #lemma		= 1
 #pos		= 2
-#cluster		= 3
+#cluster	= 3
 #deprel		= 4
 #wsd		= 5
-FACTORS 	= pos cluster deprel wsd lemma
+#FACTORS 	= pos cluster deprel wsd lemma
+FACTORS 	= lemma
 
 i=1 ; for f in $(FACTORS); do \
 	((i = i + 1)) ; \
@@ -62,7 +63,7 @@ FACTOR_MAX	= 5
 LOG_INIT_CMD	= mkdir -p $(shell dirname $@)
 LOG_CMD		= 2> $(shell dirname $@).log >&2
 # Moses
-LM_SUFFIX	= kblm.mmap
+LM_SUFFIX	= kblm
 LM_BASE 	= $(CORPUS_DIR)/train/$(LM).$(L2)
 LM_PATH		= $(shell pwd)/$(LM_BASE)
 LM_OPT_FACTORS	= $(foreach FACTOR, $(FACTORS), --lm $($(FACTOR)):3:$(LM_PATH).$(FACTOR).$(LM_SUFFIX))
@@ -106,29 +107,35 @@ METEORS 	= $(addsuffix .meteor, $(TESTS))
 #
 
 corpora : $(CORPUS_MAKEFILE)
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM) $(MAKE) all
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM) $(MAKE) all
+	cd $(CORPUS_DIR) && L=$(L1) OL=$(L2) PREFIX=$(LM) $(MAKE) all
+	cd $(CORPUS_DIR) && L=$(L2) OL=$(L1) PREFIX=$(LM) $(MAKE) all
 
-$(CORPUS_MAKEFILE) : $(CORPUS_DIR)
-	cp corpus/Makefile $@
+$(CORPUS_MAKEFILE) : corpus/Makefile $(CORPUS_DIR)
+	cp $< $@
 
-$(CORPUS_DIR)/train/$(LM).$(L1).%.$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(LM) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM).$(L1).$*.$(LM_SUFFIX)
+$(CORPUS_DIR)/train/$(LM).$(L1).% :
+	cd $(CORPUS_DIR) && L=$(L1) OL=$(L2) PREFIX=$(LM) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
 
-$(CORPUS_DIR)/train/$(LM).$(L2).%.$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(LM) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) train/$(LM).$(L2).$*.$(LM_SUFFIX)
+$(CORPUS_DIR)/train/$(LM).$(L2).% :
+	cd $(CORPUS_DIR) && L=$(L2) OL=$(L1) PREFIX=$(LM) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
 
 $(CORPUS_DIR)/$(CORPUS_PREFIX).$(L1).% : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(CORPUS_PREFIX).$(L1).$*
+	cd $(CORPUS_DIR) && L=$(L1) OL=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
 
 $(CORPUS_DIR)/$(CORPUS_PREFIX).$(L2).% : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(CORPUS_PREFIX).$(L2).$*
+	cd $(CORPUS_DIR) && L=$(L2) OL=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
+
+$(CORPUS_DIR)/train/$(CORPUS_PREFIX).$(L1).% : 
+	cd $(CORPUS_DIR) && L=$(L1) OL=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
+
+$(CORPUS_DIR)/train/$(CORPUS_PREFIX).$(L2).% : 
+	cd $(CORPUS_DIR) && L=$(L2) OL=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
 
 $(CORPUS_DIR)/%.$(L1) : 
-	cd $(CORPUS_DIR) && L=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $*.$(L1)
+	cd $(CORPUS_DIR) && L=$(L1) OL=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
 
 $(CORPUS_DIR)/%.$(L2) : 
-	cd $(CORPUS_DIR) && L=$(L2) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $*.$(L2)
+	cd $(CORPUS_DIR) && L=$(L2) OL=$(L1) PREFIX=$(CORPUS_PREFIX) LM_SUFFIX=$(LM_SUFFIX) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
 
 #
 # Models 
