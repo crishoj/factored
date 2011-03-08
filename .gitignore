@@ -1,11 +1,15 @@
 *~
-Makefile
-corpus/*
-models/*
+corpus/*-*
+models/*-*
+data
+lm
 configure
 config.status
 .DS_Store
 aclocal.m4
 autom4te.cache
 config.log
+standard_defs.mk
 
+/gmsl-tests
+/index.html

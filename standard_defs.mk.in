@@ -1,0 +1,75 @@
+
+.DELETE_ON_ERROR : # don't leave half-baked files around
+
+.SECONDARY : # keep "intermediate" files (for reuse)
+
+# Arguments from environment
+TRAIN_CORPUS	?= @TRAIN@
+DEV_CORPUS	?= @DEV@
+TEST_CORPUS	?= @TEST@
+MONO_CORPUS	?= @MONO@
+#DEV_SENTS	?= @DEV_SENTS@
+#TEST_SENTS	?= @TEST_SENTS@
+LM_SUFFIX	?= @LM_SUFFIX@
+
+LANGS		?= en de cs es fr
+PAIRS		?= fr-en es-en cs-en de-en 
+
+# Source and target language 
+L1		?= @L1@
+L2		?= @L2@
+
+# Moses
+MOSES 		= @MOSES_BIN@
+MOSES_SCRIPTS	= @MOSES_SCRIPTS@
+
+# Mert
+MERT_DIR	= @MERT_DIR@ 
+
+# Logging
+LOG_INIT_CMD	= mkdir -p $(shell dirname $@)
+LOG_CMD		= 2> $@.log >&2
+
+# Factors
+#lowercase	= 0
+#lemma		= 1
+#pos		= 2
+#cluster	= 3
+#deprel		= 4
+#wsd		= 5
+#FACTORS 	= pos cluster deprel wsd lemma
+FACTORS 	= lowercase cluster
+i=0 ; for f in $(FACTORS); do \
+	((i = i + 1)) ; \
+	$(f) := $(i) ; \
+	$(FACTOR_MAX) := $(i) ; \
+done
+
+# Language modelling
+LM_BASE 	= $(CORPUS_DIR)/monolingual/$(MONO_CORPUS)
+LM_PATH		= $(shell pwd)/$(LM_BASE)
+LMS		= $(foreach FACTOR, $(FACTORS), $(LM_BASE).$(FACTOR).$(L2).$(LM_SUFFIX))
+
+# Derived variables
+PAIR 		= $(L1)-$(L2)
+CORPUS_DIR 	= corpus/$(PAIR)
+MODEL_DIR	= models/$(PAIR)
+MODEL_BASE	= $(MODEL_DIR)/$(TRAIN_CORPUS)
+CORPUS_MAKEFILE = $(CORPUS_DIR)/Makefile
+UNFACTORED_TRAIN= $(CORPUS_DIR)/train/$(TRAIN_CORPUS)
+UNFACTORED_DEV 	= $(CORPUS_DIR)/dev/$(DEV_CORPUS)
+UNFACTORED_TEST	= $(CORPUS_DIR)/test/$(TEST_CORPUS)
+FACTORED_TRAIN	= $(CORPUS_DIR)/train/$(TRAIN_CORPUS).factored
+FACTORED_DEV 	= $(CORPUS_DIR)/dev/$(DEV_CORPUS).factored
+FACTORED_TEST	= $(CORPUS_DIR)/test/$(TEST_CORPUS).factored
+UNFACTORED_CORPORA = \
+	$(UNFACTORED_TRAIN).lowercase.$(L1) $(UNFACTORED_TRAIN).lowercase.$(L2) \
+	$(UNFACTORED_DEV).lowercase.$(L1)   $(UNFACTORED_DEV).lowercase.$(L2) \
+	$(UNFACTORED_TEST).lowercase.$(L1)  $(UNFACTORED_TEST).lowercase.$(L2) 
+FACTORED_CORPORA = \
+	$(FACTORED_TRAIN).$(L1) $(FACTORED_TRAIN).$(L2) \
+	$(FACTORED_DEV).$(L1)   $(FACTORED_DEV).$(L2) \
+	$(FACTORED_TEST).$(L1)  $(FACTORED_TEST).$(L2)	
+FACTORED_DEPS	= $(FACTORED_CORPORA) $(LMS)
+UNFACTORED_DEPS	= $(UNFACTORED_CORPORA) $(LMS)
+

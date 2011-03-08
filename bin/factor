@@ -1,4 +1,7 @@
 #!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+
+require 'iconv'
 require 'conll'
 require 'commander/import'
 
@@ -169,6 +172,14 @@ command :spl_to_wpl do |c|
   end
 end
 
+def fix_encoding(str)
+  str = str.force_encoding('ISO-8859-1')
+  %w{í ö ü ä ó é ú á Í Ö Ü Ä Ó É Ú Á ß}.each do |char|
+    str.gsub!(Iconv.conv('ISO-8859-1', 'UTF-8', char), char.force_encoding('ISO-8859-1'))
+  end
+  str.force_encoding('UTF-8')
+end
+
 command :col_to_spl do |c|
   c.syntax = 'factor col_to_spl COLFILE --output OUTPUT'
   c.description = 'Extract a single column from a columnar file and save it in sentence-per-line format'
@@ -180,15 +191,29 @@ command :col_to_spl do |c|
     output = File.open(options.output, 'w')
     toks = []
     File.foreach(args.first) do |line|
-      line.chop!
-      if line == ""
-        output << toks.join(' ') + "\n"
-        toks = []
-      else
-        cols = line.split(/\s+/)
-        val = cols[options.col-1]
-        val = cols[options.fallback-1] if val.nil? or val.empty?
-        toks << val
+      begin
+        line.chop!
+        if line == ""
+          output << toks.join(' ') + "\n"
+          toks = []
+        else
+          begin 
+            cols = line.split(/\s+/)
+          rescue ArgumentError => e
+            begin
+              cols = fix_encoding(line).split(/\s+/)
+            rescue ArgumentError => e
+              puts line.inspect
+              line.chars.each do |char|
+                puts "#{char} (#{char.inspect})"
+              end
+              raise e
+            end
+          end
+          val = cols[options.col-1]
+          val = cols[options.fallback-1] if val.nil? or val.empty?
+          toks << val
+        end
       end
     end
   end

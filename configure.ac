@@ -3,19 +3,33 @@ AC_INIT(FactoredSMT, 0.1, crjensen@hum.ku.dk)
 AC_CONFIG_AUX_DIR(cfg)
 AM_INIT_AUTOMAKE(FactoredSMT, 0.1)
 
-AC_ARG_WITH(corpus,
-            [AC_HELP_STRING([--with-corpus=PREFIX], [(optional) name (prefix) of the corpus])],
-            [CORPUS=$withval],
-            [CORPUS=europarl.cleaned]
+AC_ARG_WITH(train,
+            [AC_HELP_STRING([--with-train=PREFIX], [(optional) name (prefix) of the training corpus])],
+            [TRAIN=$withval],
+            [TRAIN=wmt11]
            )
-AC_MSG_NOTICE([Using corpus: ${CORPUS}])
+AC_MSG_NOTICE([Using training corpus: ${TRAIN}])
 
-AC_ARG_WITH(lm,
-            [AC_HELP_STRING([--with-lm=PREFIX], [(optionally) use the language models from another corpus])],
-            [LM=$withval],
-	    [LM=$CORPUS]
+AC_ARG_WITH(dev,
+            [AC_HELP_STRING([--with-dev=PREFIX], [(optional) name (prefix) of the development corpus])],
+            [DEV=$withval],
+            [DEV=newstest2009-ref]
            )
-AC_MSG_NOTICE([Using language model: ${LM}])
+AC_MSG_NOTICE([Using development corpus: ${DEV}])
+
+AC_ARG_WITH(test,
+            [AC_HELP_STRING([--with-test=PREFIX], [(optional) name (prefix) of the test corpus])],
+            [TEST=$withval],
+            [TEST=news-test2008-ref]
+           )
+AC_MSG_NOTICE([Using testing corpus: ${TEST}])
+
+AC_ARG_WITH(mono,
+            [AC_HELP_STRING([--with-mono=PREFIX], [(optional) name (prefix) of the monolingual corpus])],
+            [MONO=$withval],
+            [MONO=all]
+           )
+AC_MSG_NOTICE([Using monolingual corpus: ${MONO}])
 
 AC_ARG_WITH(lm-suffix,
             [AC_HELP_STRING([--with-lm-suffix=SUFFIX], [what sort of language model to use (e.g. kblm.mmap for memory mapped KenLM)])],
@@ -80,22 +94,22 @@ if test -z "$MOSES_BIN"; then
     AC_MSG_ERROR([moses decoder could not be found, please install or adjust PATH])
 fi
 
-AC_SUBST(CORPUS)
-AC_SUBST(LM)
+AC_SUBST(TRAIN)
+AC_SUBST(DEV)
+AC_SUBST(TEST)
+AC_SUBST(MONO)
 AC_SUBST(LM_SUFFIX)
 AC_SUBST(L1)
 AC_SUBST(L2)
-AC_SUBST(TEST_SENTS)
-AC_SUBST(DEV_SENTS)
+#AC_SUBST(TEST_SENTS)
+#AC_SUBST(DEV_SENTS)
 AC_SUBST(MERT_BIN)
 AC_SUBST(MERT_DIR)
 AC_SUBST(MOSES_BIN)
 AC_SUBST(MOSES_SCRIPTS)
 
 AC_CONFIG_FILES([
-    Makefile
-    corpus/Makefile
-    models/Makefile
+    standard_defs.mk
 ])
 
 AC_OUTPUT()
