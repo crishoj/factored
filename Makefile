@@ -11,262 +11,63 @@
 # source and target language codes, repectively.
 #
 
+BASE		= .
 include standard_defs.mk
 include lib/gmsl
-
-# Moses
-MOSES_OPTS	= --f $(L1) --e $(L2) \
-			--mgiza --mgiza-cpus 4 \
-			--lm $(form):3:$(LM_PATH).$(LM_SUFFIX)
-UNFACTORED_OPTS	= $(MOSES_OPTS) \
-			--corpus $(shell pwd)/$(UNFACTORED_TRAIN)
-FACTORED_OPTS 	= $(MOSES_OPTS) \
-			--input-factor-max $(FACTOR_MAX) \
-			--corpus $(shell pwd)/$(FACTORED_TRAIN)
-TRAIN_CMD	= train-model.perl
-CLEAN_MODEL_CMD	= rm -f $(dir $@)extract*.gz 
-PRE_TRAIN_CMD	= $(LOG_INIT_CMD) ; $(CLEAN_MODEL_CMD)
-# Mert
-MERT_OPTS 	= --mertdir=$(MERT_DIR)
-MERT_CMD	= mert-moses.pl $(MERT_OPTS)
-# Testing
-FACTOR_CONFIGS 	= tb ts ab # as.ts backoff f_pos.backoff # tb.alt.gen # tb.alt # 
-MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(FACTORS))) 
-MODELS 		= unfactored $(MODEL_CONFIGS) combined # gen_cluster gen_cluster_deprel
-MODEL_BASES 	= $(addprefix $(MODEL_BASE)., $(MODELS))
-TESTS 		= $(addsuffix /model.test.out, $(MODEL_BASES)) # $(addsuffix /model.optimized.test.out, $(MODEL_BASES))
-BLEUS 		= $(addsuffix .bleu, $(TESTS))
-METEORS 	= $(addsuffix .meteor, $(TESTS))
 
 #
 # Corpus stuff
 #
 
-all-corpora : $(foreach PAIR, $(PAIRS), $(PAIR)-corpus)
+.PHONY: all 
 
-%-corpus : corpus/% 
-	cd corpus/$* && $(MAKE) all
+all : lms corpora models recasers
+lms : $(foreach LANG, $(LANGS), $(LANG)-lm)
+embeds : $(foreach LANG, $(LANGS), $(LANG)-embed)
+corpora : $(foreach PAIR, $(PAIRS), $(PAIR)-corpus)
+recasers : $(foreach LANG, $(LANGS), $(LANG)-recaser)
+models : corpora $(foreach PAIR, $(PAIRS), $(PAIR)-model)
+model-dirs : $(foreach PAIR, $(PAIRS), models/$(PAIR))
 
-corpus : corpus/$(L1)-$(L2)
+%-lm : 
+	L=$* $(MAKE) -C $(MONO) lms
+
+%-embed : 
+	L=$* $(MAKE) -C $(MONO) all.lowercase-embedding
+
+%-recaser : $(MONO)/$(MONO_CORPUS).token.%
+	mkdir -p recasers/$*
+	$(MOSES_SCRIPTS)/recaser/train-recaser.perl \
+		-train-script $(MOSES_SCRIPTS)/training/train-model.perl \
+		-ngram-count $(NGRAM_COUNT) \
+		-corpus $< \
+		-dir $(abspath recasers/$*)
 
 reverse-corpus : corpus
 	cd corpus && ln -s $(L1)-$(L2) $(L2)-$(L1) 
 
-corpus/$(L1)-$(L2) : 
-	mkdir -p $(CORPUS_DIR)/test
-	mkdir -p $(CORPUS_DIR)/dev
-	mkdir -p $(CORPUS_DIR)/train
-	cd $(CORPUS_DIR) && ln -s ../../data/training-monolingual monolingual
-	cd $(CORPUS_DIR) && ln -s ../Makefile .
+%-corpus : corpus/% 
+	$(MAKE) -C corpus/$* all
 
 corpus/% : 
-	L1=$(call substr,$*,1,2) L2=$(call substr,$*,4,5) $(MAKE) $@
+	mkdir -p $@/test
+	mkdir -p $@/dev
+	mkdir -p $@/train
+	cd $@ && ln -s ../../data/training-monolingual monolingual
+	cd $@ && ln -s ../Makefile .
 
 $(CORPUS_DIR)/%.$(L1) : 
-	cd $(CORPUS_DIR) && L=$(L1) OL=$(L2) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
+	L=$(L1) OL=$(L2) $(MAKE) -C $(CORPUS_DIR) $(subst $(CORPUS_DIR)/,,$@)
 
 $(CORPUS_DIR)/%.$(L2) : 
-	cd $(CORPUS_DIR) && L=$(L2) OL=$(L1) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
+	L=$(L2) OL=$(L1) $(MAKE) -C $(CORPUS_DIR) $(subst $(CORPUS_DIR)/,,$@)
 
-$(CORPUS_DIR)/%.$(L1).$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L1) OL=$(L2) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
+%-model : models/% 
+	$(MAKE) -C models/$* models
 
-$(CORPUS_DIR)/%.$(L2).$(LM_SUFFIX) : 
-	cd $(CORPUS_DIR) && L=$(L2) OL=$(L1) $(MAKE) $(subst $(CORPUS_DIR)/,,$@)
+models/% : 
+	mkdir -p $@
+	cd $@ && ln -s ../Makefile .
 
-#
-# Models 
-#
 
-$(MODEL_BASE).unfactored/model/moses.ini : $(UNFACTORED_DEPS) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(MODEL_BASE).unfactored $(UNFACTORED_OPTS) \
-		$(LOG_CMD)
-
-# Generic rule for an additional translation factor on both sides
-$(MODEL_BASE).tb.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX)
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--translation-factors $(form),$($*)-$(form),$($*) \
-		--lm $($*):3:$(LM_PATH).$*.$(LM_SUFFIX) \
-		$(LOG_CMD)
-
-# Generic rule for an additional translation and alignment factor on the source side only
-$(MODEL_BASE).as.ts.%/model/moses.ini : $(FACTORED_DEPS) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--alignment-factors $(form),$($*)-$(form) \
-		--translation-factors $(form),$($*)-$(form) \
-		$(LOG_CMD)
-
-# Generic rule for an additional translation factor on the source side only
-$(MODEL_BASE).ts.%/model/moses.ini : $(FACTORED_DEPS) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--translation-factors $(form),$($*)-$(form) \
-		$(LOG_CMD)
-
-# Alignment factor (both sides)
-$(MODEL_BASE).ab.%/model/moses.ini : $(FACTORED_DEPS) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--alignment-factors $(form),$($*)-$(form),$($*) \
-		--translation-factors $(form)-$(form) \
-		$(LOG_CMD)
-
-# A strategy for translating surface forms which have not been seen in the training corpus: Backoff to another factor
-$(MODEL_BASE).backoff.%/model/moses.ini : $(FACTORED_DEPS) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--translation-factors $(form)-$(form)+$($*)-$(form) \
-		--decoding-steps t0:t1 \
-		$(LOG_CMD) 
-
-# A strategy for translating surface forms which have not been seen in the training corpus: Backoff to another factor (with POS)
-$(MODEL_BASE).f_pos.backoff.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) $(LM_BASE).pos.$(LM_SUFFIX) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--translation-factors $(form)-$(form),$(pos)+$($*)-$(form),$(pos) \
-		--lm $(pos):3:$(LM_PATH).pos.$(LM_SUFFIX) \
-		--decoding-steps t0:t1 \
-		$(LOG_CMD) 
-
-# An additional translation factor as an alternative decoding path, with generation
-$(MODEL_BASE).tb.alt.gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--translation-factors $(form)-$(form)+$($*)-$($*) \
-		--lm $($*):3:$(LM_PATH).$*.$(LM_SUFFIX) \
-		--generation-factors $(form)-$($*) \
-		--decoding-steps t0,g0:t1 \
-		$(LOG_CMD) 
-
-# An additional translation factor as an alternative decoding path
-$(MODEL_BASE).tb.alt.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--translation-factors $(form)-$(form),$($*)+$($*)-$(form),$($*) \
-		--lm $($*):3:$(LM_PATH).$*.$(LM_SUFFIX) \
-		--decoding-steps t0:t1 \
-		$(LOG_CMD)
-
-# Translate using a single factor (e.g. Brown clusters), then generate surface forms
-$(MODEL_BASE).gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(PRE_TRAIN_CMD) 
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) $(FACTORED_OPTS) \
-		--translation-factors $($*)-$($*) \
-		--generation-factors $($*)-$(form) \
-		--lm $($*):3:$(LM_PATH).$*.$(LM_SUFFIX) \
-		$(LOG_CMD)
-
-# Complex models
-#$(MODEL_BASE).combined/model/moses.ini : $(FACTORED_DEPS) $(FACTOR_LMS)
-#	$(PRE_TRAIN_CMD) 
-#	$(TRAIN_CMD) --root-dir $(MODEL_BASE).combined $(FACTORED_OPTS) \
-#		--translation-factors $(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd)-$(form),$(lemma),$(pos),$(cluster),$(deprel),$(wsd) \
-#		$(LM_OPT_FACTORS) \
-#		$(LOG_CMD)
-#
-#$(MODEL_BASE).gen_cluster/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.$(LM_SUFFIX) 
-#	$(PRE_TRAIN_CMD) 
-#	$(TRAIN_CMD) --root-dir $(MODEL_BASE).gen_cluster $(FACTORED_OPTS) \
-#		--translation-factors $(form)-$(form)+$(cluster)-$(cluster) \
-#		--generation-factors $(form)-$(cluster) \
-#		--decoding-steps t0,g0,t1 \
-#		$(LOG_CMD)
-#
-#$(MODEL_BASE).gen_cluster_deprel/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.$(LM_SUFFIX) $(LM_BASE).deprel.$(LM_SUFFIX)
-#	$(PRE_TRAIN_CMD) 
-#	$(TRAIN_CMD) --root-dir $(MODEL_BASE).gen_cluster_deprel $(FACTORED_OPTS) \
-#		--translation-factors $(form)-$(form)+$(deprel),$(cluster)-$(deprel),$(cluster) \
-#		--generation-factors $(form)-$(deprel),$(cluster) \
-#		--decoding-steps t0,g0,t1 \
-#		$(LOG_CMD)
-
-#
-# MERT
-#
-$(MODEL_BASE).unfactored/model.optimized/moses.ini : $(MODEL_BASE).unfactored/model/moses.ini
-	$(PRE_TRAIN_CMD) 
-	$(MERT_CMD) --working-dir=$(MODEL_BASE).unfactored/model.optimized $(UNFACTORED_DEV).$(L1) $(UNFACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
-
-$(MODEL_BASE).%/model.optimized/moses.ini : $(MODEL_BASE).%/model/moses.binarized.ini
-	$(PRE_TRAIN_CMD) 
-	$(MERT_CMD) --working-dir=$(MODEL_BASE).$*/model.optimized $(FACTORED_DEV).$(L1) $(FACTORED_DEV).$(L2) $(MOSES) $< $(LOG_CMD)
-
-#
-# Phrase table filtering
-#
-$(MODEL_BASE).%/model.filtered/moses.ini : $(MODEL_BASE).%/model/moses.binarized.ini $(FACTORED_TEST).$(L1)
-	filter-model-given-input.pl $(shell dirname $@) $^ -Binarizer processPhraseTable 2> $(shell dirname $@).log >&2
-
-#
-# Binarization
-#
-$(MODEL_BASE).%/model/moses.binarized.ini : $(MODEL_BASE).%/model/moses.ini $(MODEL_BASE).%/model/Makefile
-	cd $(shell dirname $@) && $(MAKE) moses.binarized.ini
-
-$(MODEL_BASE).%/model/Makefile : models/Makefile
-	mkdir -p $(shell dirname $@)
-	cp models/Makefile $@
-
-#
-# Testing 
-#
-$(MODEL_BASE).unfactored/model.test.out : $(MODEL_BASE).unfactored/model.filtered/moses.ini $(UNFACTORED_TEST).$(L1)
-	moses -f $< \
-		< $(UNFACTORED_TEST).$(L1) \
-		> $@ \
-		2> $@.log
-
-$(MODEL_BASE).%/model.test.out : $(MODEL_BASE).%/model.filtered/moses.ini $(FACTORED_TEST).$(L1)
-	moses -f $< \
-		< $(FACTORED_TEST).$(L1) \
-		> $@ \
-		2> $@.log
-
-$(MODEL_BASE).unfactored/model.optimized.test.out : $(MODEL_BASE).unfactored/model.optimized/moses.ini $(UNFACTORED_TEST).$(L1)
-	moses -f $< \
-		< $(UNFACTORED_TEST).$(L1) \
-		> $@ \
-		2> $@.log
-
-$(MODEL_BASE).%/model.optimized.test.out : $(MODEL_BASE).%/model.optimized/moses.ini $(FACTORED_TEST).$(L1)
-	moses -f $< \
-		< $(FACTORED_TEST).$(L1) \
-		> $@ \
-		2> $@.log
-
-$(MODEL_BASE).%.test.out.bleu : $(MODEL_BASE).%.test.out
-	$(MOSES_SCRIPTS)/generic/multi-bleu.perl $(UNFACTORED_TEST).$(L2) \
-		< $< \
-		> $@ \
-		2> $@.log
-
-$(MODEL_BASE).%.test.out.meteor : $(MODEL_BASE).%.test.out
-	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(UNFACTORED_TEST).$(L2) -l $(L2) > $@
-
-bleu : $(BLEUS)
-	tail $^
-
-meteor : $(METEORS)
-	tail $^
-
-eval-all : bleu meteor
-
-monolingual-corpora : 
-	L=$* cd $(MAKE) corpora
-
-all : eval-all
-
-clean-optimized : 
-	rm -rf $(MODEL_BASE).*/model.optimized
-
-clean-eval : 
-	rm -rf $(MODEL_BASE).*/model*.out.bleu $(MODEL_BASE).*/model*.out.meteor
-
-clean : 
-	rm -rf $(MODEL_BASE).*
-
-.PHONY:  all eval bleu meteor clean clean-optimized clean-eval 
 

@@ -13,14 +13,14 @@ AC_MSG_NOTICE([Using training corpus: ${TRAIN}])
 AC_ARG_WITH(dev,
             [AC_HELP_STRING([--with-dev=PREFIX], [(optional) name (prefix) of the development corpus])],
             [DEV=$withval],
-            [DEV=newstest2009-ref]
+            [DEV=newstest2009]
            )
 AC_MSG_NOTICE([Using development corpus: ${DEV}])
 
 AC_ARG_WITH(test,
             [AC_HELP_STRING([--with-test=PREFIX], [(optional) name (prefix) of the test corpus])],
             [TEST=$withval],
-            [TEST=news-test2008-ref]
+            [TEST=newstest2011]
            )
 AC_MSG_NOTICE([Using testing corpus: ${TEST}])
 
@@ -32,9 +32,9 @@ AC_ARG_WITH(mono,
 AC_MSG_NOTICE([Using monolingual corpus: ${MONO}])
 
 AC_ARG_WITH(lm-suffix,
-            [AC_HELP_STRING([--with-lm-suffix=SUFFIX], [what sort of language model to use (e.g. kblm.mmap for memory mapped KenLM)])],
+            [AC_HELP_STRING([--with-lm-suffix=SUFFIX], [what sort of language model to use (e.g. kblm for binary KenLM)])],
             [LM_SUFFIX=$withval],
-            [LM_SUFFIX=kblm.mmap]
+            [LM_SUFFIX=kblm]
            )
 AC_MSG_NOTICE([Using language model type: ${LM_SUFFIX}])
 
