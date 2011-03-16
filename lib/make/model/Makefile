@@ -50,20 +50,27 @@ model.optimized/moses.ini : model/moses.binarized.ini $(DEV).$(L1) $(DEV).$(L2)
 #
 # Filtering
 #
-model.filtered.$(TEST_CORPUS)/moses.ini : model.optimized/moses.ini $(TEST).$(L1)
+%.filtered_for_$(TEST_CORPUS)/moses.ini : %/moses.ini $(TEST).$(L1)
+	rm -rf $(@D)
 	filter-model-given-input.pl $(@D) $^ -Binarizer processPhraseTable 2> $(@D).log >&2
 
 #
 # Testing
 #
-$(TEST_CORPUS).out : model.filtered.$(TEST_CORPUS)/moses.ini $(TEST).$(L1) 
+$(TEST_CORPUS).default.out : model.filtered_for_$(TEST_CORPUS)/moses.ini $(TEST).$(L1) 
 	moses -f $< < $(TEST).$(L1) > $@ 2> $@.log
 
-submission : $(TEST_CORPUS).out.sgm $(TEST_CORPUS).out.sgm.bleu
+$(TEST_CORPUS).optimized.out : model.optimized.filtered_for_$(TEST_CORPUS)/moses.ini $(TEST).$(L1) 
+	moses -f $< < $(TEST).$(L1) > $@ 2> $@.log
+
+submission : $(TEST_CORPUS).optimized.out.sgm.bleu $(TEST_CORPUS).default.out.sgm.bleu
 	echo "Made $^"
 
-%.out.sgm : $(DATA)/*/%-src.$(L2).sgm %.out.recased.detokenized
-	$(BASE)/scripts/wrap-xml.perl $< $(L2) $(basename $(@D)) < $*.out.recased.detokenized > $@
+%.default.out.sgm : $(DATA)/test/%-src.$(L1).sgm %.default.out.recased.detokenized
+	$(BASE)/scripts/wrap-xml.perl $< $(L2) $(MODEL_NAME) < $*.default.out.recased.detokenized > $@
+
+%.optimized.out.sgm : $(DATA)/test/%-src.$(L1).sgm %.optimized.out.recased.detokenized
+	$(BASE)/scripts/wrap-xml.perl $< $(L2) $(MODEL_NAME) < $*.optimized.out.recased.detokenized > $@
 
 %.detokenized : %
 	$(MOSES_SCRIPTS)/tokenizer/detokenizer.perl -l $(L2) < $< > $@
@@ -74,11 +81,8 @@ submission : $(TEST_CORPUS).out.sgm $(TEST_CORPUS).out.sgm.bleu
 #
 # Evaluation
 #
-%.out.bleu : %.out
-	$(MOSES_SCRIPTS)/generic/multi-bleu.perl $(TEST).$(L2) < $< > $@ 2> $@.log
-
-%.out.sgm.bleu : %.out.sgm
-	$(MTEVAL) -r $(DATA)/test/$*-src.$(L2).sgm -s $(DATA)/test/$*-src.$(L1).sgm -t $< -c -b
+$(TEST_CORPUS).%.out.sgm.bleu : $(TEST_CORPUS).%.out.sgm
+	$(MTEVAL) -r $(DATA)/test/$(TEST_CORPUS)-src.$(L2).sgm -s $(DATA)/test/$(TEST_CORPUS)-src.$(L1).sgm -t $< -c -b
 
 %.test.out.meteor : %.test.out
 	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(TEST).$(L2) -l $(L2) > $@
