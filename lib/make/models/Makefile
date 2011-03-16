@@ -32,8 +32,8 @@ FACTORED_CORPORA = \
 	$(FACTORED_DEV).$(L1)   $(FACTORED_DEV).$(L2) \
 	$(FACTORED_TEST).$(L1)  $(FACTORED_TEST).$(L2)	
 FACTOR_LM	= $(LM_BASE).$*.$(L2).$(LM_SUFFIX)
-FACTORED_DEPS	= random-sleep $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX) $(FACTORED_TRAIN).$(L1) $(FACTORED_TRAIN).$(L2) $(LM_BASE).%.$(L2).$(LM_SUFFIX)
-UNFACTORED_DEPS	= random-sleep $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX) $(UNFACTORED_TRAIN).$(L1) $(UNFACTORED_TRAIN).$(L2) 
+FACTORED_DEPS	= $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX) $(FACTORED_TRAIN).$(L1) $(FACTORED_TRAIN).$(L2) $(LM_BASE).%.$(L2).$(LM_SUFFIX)
+UNFACTORED_DEPS	= $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX) $(UNFACTORED_TRAIN).$(L1) $(UNFACTORED_TRAIN).$(L2) 
 
 # Moses
 BASE_LM_OPT	= --lm $($(BASE_FACTOR)):3:$(abspath $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX))
@@ -58,15 +58,22 @@ TESTS 		= $(addsuffix /model.test.out, $(MODEL_DIRS)) # $(addsuffix /model.optim
 BLEUS 		= $(addsuffix .bleu, $(TESTS))
 METEORS 	= $(addsuffix .meteor, $(TESTS))
 
+.PHONY : eval bleu meteor clean clean-optimized clean-eval 
+
 models : $(OPTIMIZED_MODELS)
 
 %/model.optimized/moses.ini : %/model/moses.ini
 	$(MAKE) -C $* model.optimized/moses.ini
 
+submissions : $(foreach MODEL_NAME, $(MODEL_NAMES), $(MODEL_NAME)-submission)
+
 # Shorthand
 
 %-model : $(TRAIN_CORPUS).%/model/moses.ini
 	echo "Made $* model"
+
+%-submission : 
+	$(MAKE) -C $(TRAIN_CORPUS).$* submission
 
 # Training
 
@@ -189,21 +196,4 @@ $(TRAIN_CORPUS).gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFI
 #		--decoding-steps t0,g0,t1 \
 #		$(LOG_CMD)
 
-bleu : $(BLEUS)
-	tail $^
 
-meteor : $(METEORS)
-	tail $^
-
-eval-all : bleu meteor
-
-clean-optimized : 
-	rm -rf $(TRAIN_CORPUS).*/model.optimized
-
-clean-eval : 
-	rm -rf $(TRAIN_CORPUS).*/model*.out.bleu $(TRAIN_CORPUS).*/model*.out.meteor
-
-clean : 
-	rm -rf $(TRAIN_CORPUS).*
-
-.PHONY:  eval bleu meteor clean clean-optimized clean-eval 
