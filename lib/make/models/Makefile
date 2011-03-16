@@ -14,7 +14,7 @@ PAIR 		:= $(shell basename $(CURDIR))
 L1		:= $(call substr,$(PAIR),1,2)
 L2		:= $(call substr,$(PAIR),4,5)
 include $(BASE)/standard_defs.mk
-include $(BASE)/common_rules.mk
+include $(BASE)/lib/make/common.mk
 
 # Corpora
 UNFACTORED_TRAIN= $(CORPUS_DIR)/train/$(TRAIN_CORPUS).$(BASE_FACTOR)

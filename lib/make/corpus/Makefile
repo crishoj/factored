@@ -14,7 +14,7 @@ L		?= $(call substr,$(PAIR),1,2)
 OL		?= $(call substr,$(PAIR),4,5)
 include $(BASE)/lib/gmsl
 include $(BASE)/standard_defs.mk
-include $(BASE)/common_rules.mk
+include $(BASE)/lib/make/common.mk
 
 # Derived variables
 DEPPARSE 	= ../../../stacked_dep/data/$(L)/europarl-$(PAIR)/mst2.out.conll

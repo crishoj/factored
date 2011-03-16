@@ -24,7 +24,7 @@ DEV		?= $(CORPUS_DIR)/dev/$(DEV_CORPUS).factored
 TEST		?= $(CORPUS_DIR)/test/$(TEST_CORPUS).factored
 endif
 include $(BASE)/standard_defs.mk
-include $(BASE)/common_rules.mk
+include $(BASE)/lib/make/common.mk
 
 # Mert
 MERT_OPTS 	= --mertdir=$(MERT_DIR)
