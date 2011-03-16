@@ -1,6 +1,7 @@
 *~
 corpus/*-*
 models/*-*
+recasers/*
 data
 lm
 configure
