@@ -15,6 +15,13 @@ LM_SUFFIX	?= @LM_SUFFIX@
 LANGS		?= en de cs es fr
 PAIRS		?= fr-en es-en cs-en de-en 
 
+# Source and target language 
+L1		?= @L1@
+L2		?= @L2@
+PAIR 		?= $(L1)-$(L2)
+L		?= @L1@
+OL		?= @L2@
+
 # Factors
 BASE_FACTOR	:= lowercase
 NONBASE_FACTORS	:= cluster100 cluster320 cluster1000 unsupos # pos cluster deprel wsd lemma
@@ -23,13 +30,6 @@ FACTOR_FILES	:= $(foreach FACTOR, $(FACTORS), %.$(FACTOR).$(L))
 factor_i	:= # factor counter
 $(foreach factor,$(FACTORS), $(eval $(factor):=$(words $(factor_i))) $(eval factor_i+=x)) # enumerate factors
 FACTOR_MAX	:= $(words $(NONBASE_FACTORS))
-
-# Source and target language 
-L1		?= @L1@
-L2		?= @L2@
-PAIR 		?= $(L1)-$(L2)
-L		?= @L1@
-OL		?= @L2@
 
 # Paths
 DATA		?= $(BASE)/data
