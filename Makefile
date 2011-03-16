@@ -26,8 +26,9 @@ lms : $(foreach LANG, $(LANGS), $(LANG)-lm)
 embeds : $(foreach LANG, $(LANGS), $(LANG)-embed)
 corpora : $(foreach PAIR, $(PAIRS), $(PAIR)-corpus)
 recasers : $(foreach LANG, $(LANGS), $(LANG)-recaser)
-models : corpora $(foreach PAIR, $(PAIRS), $(PAIR)-model)
+models : $(foreach PAIR, $(PAIRS), $(PAIR)-models)
 model-dirs : $(foreach PAIR, $(PAIRS), models/$(PAIR))
+submissions : $(foreach PAIR, $(PAIRS), $(PAIR)-submissions)
 
 %-lm : 
 	L=$* $(MAKE) -C $(MONO) lms
@@ -62,12 +63,16 @@ $(CORPUS_DIR)/%.$(L1) :
 $(CORPUS_DIR)/%.$(L2) : 
 	L=$(L2) OL=$(L1) $(MAKE) -C $(CORPUS_DIR) $(subst $(CORPUS_DIR)/,,$@)
 
-%-model : models/% 
+%-models : models/% %-corpus
 	$(MAKE) -C models/$* models
 
 models/% : 
 	mkdir -p $@
 	cd $@ && ln -s ../Makefile .
+
+%-submissions : %-models
+	$(MAKE) -C models/$* submissions
+
 
 
 
