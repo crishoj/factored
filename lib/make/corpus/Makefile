@@ -35,15 +35,15 @@ test/%.raw.$(L) : $(BASE)/data/test/%-src.$(L).sgm
 train/wmt11.raw.$(L) : $(DATA)/training/*.$(PAIR).$(L) 
 	cat $^ > $@
 
-%.clean.$(L) %.clean.$(OL) : %.token.$(L) %.token.$(OL)
+# Training data needs "cleaning" (filtering out long sentences)
+$(TRAIN_CORPUS).clean.$(L) $(TRAIN_CORPUS).clean.$(OL) : %.token.$(L) %.token.$(OL)
 	@echo "Sanity check:" && wc -l $^ | uniq
 	clean-corpus-n.perl $*.token $(L) $(OL) $*.clean 1 40 $*.retained
 
-# We don't need to clean the monolingual data
-$(MONO)/%.lowercase.$(L) : $(MONO)/%.token.$(L)
+$(TRAIN_CORPUS).lowercase.$(L) : $(TRAIN_CORPUS).clean.$(L)
 	lowercase.perl < $< > $@
 
-%.lowercase.$(L) : %.clean.$(L)
+%.lowercase.$(L) : %.token.$(L)
 	lowercase.perl < $< > $@
 
 # POS and dependency relations from a dependency parse
