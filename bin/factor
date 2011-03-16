@@ -111,6 +111,21 @@ command :cluster_extract do |c|
   end
 end
 
+command :unsupos_extract do |c|
+  c.syntax = 'factor unsupos_extract OUTPUT [options]'
+  c.description = "Create a factor file with jUnsupos tags "
+  c.option '--output FILE', 'Where to put the factor file'
+  c.action do |args, options|
+    tags_file = args.last
+    say "Reading tags from #{tags_file}"
+    say "Writing output to #{options.output}"
+    output = File.open(options.output, 'w')
+    File.foreach(tags_file) do |line|
+      output << line.strip.split(" ").collect { |tok| tok.split('|').last }.join(' ') + "\n"
+    end
+  end
+end
+
 command :prepare_wsd do |c|
   c.syntax = 'factor prepare_wsd LEMMAS POS'
   c.description = 'Prepare a context file for word sense disambiguation.'
