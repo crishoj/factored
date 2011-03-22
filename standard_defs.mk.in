@@ -11,6 +11,7 @@ MONO_CORPUS	?= @MONO@
 #DEV_SENTS	?= @DEV_SENTS@
 #TEST_SENTS	?= @TEST_SENTS@
 LM_SUFFIX	?= @LM_SUFFIX@
+LM_ORDER	?= 5
 
 LANGS		?= en de cs es fr
 PAIRS		?= fr-en es-en cs-en de-en 
@@ -23,10 +24,11 @@ L		?= @L1@
 OL		?= @L2@
 
 # Factors
-BASE_FACTOR	:= lowercase
-NONBASE_FACTORS	:= cluster100 cluster320 cluster1000 unsupos # pos cluster deprel wsd lemma
+FACTOR_CONFIGS 	?= ts tb # ab # as.ts backoff f_pos.backoff # tb.alt.gen # tb.alt # 
+BASE_FACTOR	?= lowercase
+NONBASE_FACTORS	?= cluster100 cluster320 cluster1000 unsupos # pos cluster deprel wsd lemma
 FACTORS 	:= $(BASE_FACTOR) $(NONBASE_FACTORS)
-FACTOR_FILES	:= $(foreach FACTOR, $(FACTORS), %.$(FACTOR).$(L))
+FACTOR_FILES	?= $(foreach FACTOR, $(FACTORS), %.$(FACTOR).$(L))
 factor_i	:= # factor counter
 $(foreach factor,$(FACTORS), $(eval $(factor):=$(words $(factor_i))) $(eval factor_i+=x)) # enumerate factors
 FACTOR_MAX	:= $(words $(NONBASE_FACTORS))

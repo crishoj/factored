@@ -27,8 +27,10 @@ embeds : $(foreach LANG, $(LANGS), $(LANG)-embed)
 corpora : $(foreach PAIR, $(PAIRS), $(PAIR)-corpus)
 recasers : $(foreach LANG, $(LANGS), $(LANG)-recaser)
 models : $(foreach PAIR, $(PAIRS), $(PAIR)-models)
+	echo "Made $^"
 model-dirs : $(foreach PAIR, $(PAIRS), models/$(PAIR))
 submissions : $(foreach PAIR, $(PAIRS), $(PAIR)-submissions)
+evals : $(foreach PAIR, $(PAIRS), $(PAIR)-eval)
 
 %-lm : 
 	L=$* $(MAKE) -C $(MONO) lms
@@ -55,7 +57,7 @@ corpus/% :
 	mkdir -p $@/dev
 	mkdir -p $@/train
 	cd $@ && ln -s ../../data/training-monolingual monolingual
-	cd $@ && ln -s ../Makefile .
+	cd $@ && ln -s ../../lib/make/corpus/Makefile .
 
 $(CORPUS_DIR)/%.$(L1) : 
 	L=$(L1) OL=$(L2) $(MAKE) -C $(CORPUS_DIR) $(subst $(CORPUS_DIR)/,,$@)
@@ -63,12 +65,15 @@ $(CORPUS_DIR)/%.$(L1) :
 $(CORPUS_DIR)/%.$(L2) : 
 	L=$(L2) OL=$(L1) $(MAKE) -C $(CORPUS_DIR) $(subst $(CORPUS_DIR)/,,$@)
 
-%-models : models/% %-corpus
+%-models : models/% 
 	$(MAKE) -C models/$* models
+
+%-eval : models/% 
+	$(MAKE) -C models/$* evals
 
 models/% : 
 	mkdir -p $@
-	cd $@ && ln -s ../Makefile .
+	cd $@ && ln -s ../../lib/make/models/Makefile .
 
 %-submissions : %-models
 	$(MAKE) -C models/$* submissions

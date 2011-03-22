@@ -8,9 +8,6 @@ LEMMAGEN_OPTS 	= -f wpl
 FACTOR_TOOL 	= $(BASE)/bin/factor
 SPLIT		= $(BASE)/bin/split.sh
 
-SRILM_OPTIONS 	= -order 3 -interpolate -kndiscount -unk 
-SRILM_OPTIONS2 	= -order 3 -interpolate 
-
 JUNSUPOS	= /opt/jUnsupos
 
 EMBED		= /opt/neural-language-model
@@ -96,13 +93,5 @@ random-sleep :
 
 %.unsupos.$(L) : %.unsupos.$(L).output
 	$(FACTOR_TOOL) --trace unsupos_extract $< --output $@
-
-# Language modelling
-%.lm : %
-	ngram-count $(SRILM_OPTIONS2) -text $< -lm $@
-
-# Binary LM for memory mapping with KenLM
-%.kblm : %.lm
-	build_binary $< $@
 
 

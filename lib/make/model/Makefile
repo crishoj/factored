@@ -30,6 +30,12 @@ include $(BASE)/lib/make/common.mk
 MERT_OPTS 	= --mertdir=$(MERT_DIR)
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
 
+submission : $(TEST_CORPUS).optimized.out.sgm 
+	echo "Made $^"
+
+eval : $(TEST_CORPUS).optimized.out.bleu 
+	head $^
+
 #
 # Binarization
 #
@@ -63,14 +69,14 @@ $(TEST_CORPUS).default.out : model.filtered_for_$(TEST_CORPUS)/moses.ini $(TEST)
 $(TEST_CORPUS).optimized.out : model.optimized.filtered_for_$(TEST_CORPUS)/moses.ini $(TEST).$(L1) 
 	moses -f $< < $(TEST).$(L1) > $@ 2> $@.log
 
-submission : $(TEST_CORPUS).optimized.out.sgm.bleu $(TEST_CORPUS).default.out.sgm.bleu
-	echo "Made $^"
+%.default.out.sgm : $(DATA)/test/%-src.$(L2).sgm %.default.out.recased.detokenized.normalized
+	$(BASE)/scripts/wrap-xml.perl $(L2) $< $(MODEL_NAME) < $*.default.out.recased.detokenized.normalized > $@
 
-%.default.out.sgm : $(DATA)/test/%-src.$(L1).sgm %.default.out.recased.detokenized
-	$(BASE)/scripts/wrap-xml.perl $< $(L2) $(MODEL_NAME) < $*.default.out.recased.detokenized > $@
+%.optimized.out.sgm : $(DATA)/test/%-src.$(L2).sgm %.optimized.out.recased.detokenized.normalized
+	$(BASE)/scripts/wrap-xml.perl $(L2) $< $(MODEL_NAME) < $*.optimized.out.recased.detokenized.normalized > $@
 
-%.optimized.out.sgm : $(DATA)/test/%-src.$(L1).sgm %.optimized.out.recased.detokenized
-	$(BASE)/scripts/wrap-xml.perl $< $(L2) $(MODEL_NAME) < $*.optimized.out.recased.detokenized > $@
+%.normalized : %
+	$(BASE)/scripts/normalize-punctuation.perl $(L2) < $< > $@
 
 %.detokenized : %
 	$(MOSES_SCRIPTS)/tokenizer/detokenizer.perl -l $(L2) < $< > $@
@@ -83,6 +89,9 @@ submission : $(TEST_CORPUS).optimized.out.sgm.bleu $(TEST_CORPUS).default.out.sg
 #
 $(TEST_CORPUS).%.out.sgm.bleu : $(TEST_CORPUS).%.out.sgm
 	$(MTEVAL) -r $(DATA)/test/$(TEST_CORPUS)-src.$(L2).sgm -s $(DATA)/test/$(TEST_CORPUS)-src.$(L1).sgm -t $< -c -b
+
+$(TEST_CORPUS).%.out.bleu : $(TEST_CORPUS).%.out
+	$(MOSES_SCRIPTS)/generic/multi-bleu.perl $(CORPUS_DIR)/test/$(TEST_CORPUS).$(BASE_FACTOR).$(L2) < $< > $@ 
 
 %.test.out.meteor : %.test.out
 	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(TEST).$(L2) -l $(L2) > $@

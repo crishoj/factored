@@ -36,10 +36,10 @@ FACTORED_DEPS	= $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX) $(FACTORED_TRAIN).$
 UNFACTORED_DEPS	= $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX) $(UNFACTORED_TRAIN).$(L1) $(UNFACTORED_TRAIN).$(L2) 
 
 # Moses
-BASE_LM_OPT	= --lm $($(BASE_FACTOR)):3:$(abspath $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX))
-MOSES_OPTS	= --f $(L1) --e $(L2) --mgiza --mgiza-cpus 4 $(BASE_LM_OPT)
-UNFACTORED_OPTS	= $(MOSES_OPTS) --corpus $(UNFACTORED_TRAIN)
-FACTORED_OPTS 	= $(MOSES_OPTS) --corpus $(FACTORED_TRAIN) --input-factor-max $(FACTOR_MAX) 
+BASE_LM_OPT	= -lm $($(BASE_FACTOR)):$(LM_ORDER):$(abspath $(LM_BASE).$(BASE_FACTOR).$(L2).$(LM_SUFFIX))
+MOSES_OPTS	= -f $(L1) -e $(L2) -alignment grow-diag-final-and -reordering msd-bidirectional-fe $(BASE_LM_OPT) 
+UNFACTORED_OPTS	= $(MOSES_OPTS) -corpus $(UNFACTORED_TRAIN)
+FACTORED_OPTS 	= $(MOSES_OPTS) -corpus $(FACTORED_TRAIN) -input-factor-max $(FACTOR_MAX) 
 TRAIN_CMD	= train-model.perl
 PRE_TRAIN_CMD	= mkdir -p $(@D) && \
 	cd $(dir $(@D)) && \
@@ -47,7 +47,6 @@ PRE_TRAIN_CMD	= mkdir -p $(@D) && \
 	rm -f extract*.gz 
 
 # Testing
-FACTOR_CONFIGS 	= tb # ts ab # as.ts backoff f_pos.backoff # tb.alt.gen # tb.alt # 
 MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(NONBASE_FACTORS))) 
 MODEL_NAMES	= unfactored $(MODEL_CONFIGS) # combined # gen_cluster gen_cluster_deprel
 MODEL_DIRS	= $(addprefix $(TRAIN_CORPUS)., $(MODEL_NAMES))
@@ -58,7 +57,7 @@ TESTS 		= $(addsuffix /model.test.out, $(MODEL_DIRS)) # $(addsuffix /model.optim
 BLEUS 		= $(addsuffix .bleu, $(TESTS))
 METEORS 	= $(addsuffix .meteor, $(TESTS))
 
-.PHONY : eval bleu meteor clean clean-optimized clean-eval 
+.PHONY : models
 
 models : $(OPTIMIZED_MODELS)
 
@@ -67,6 +66,8 @@ models : $(OPTIMIZED_MODELS)
 
 submissions : $(foreach MODEL_NAME, $(MODEL_NAMES), $(MODEL_NAME)-submission)
 
+evals : $(foreach MODEL_NAME, $(MODEL_NAMES), $(MODEL_NAME)-eval)
+
 # Shorthand
 
 %-model : $(TRAIN_CORPUS).%/model/moses.ini
@@ -74,6 +75,9 @@ submissions : $(foreach MODEL_NAME, $(MODEL_NAMES), $(MODEL_NAME)-submission)
 
 %-submission : 
 	$(MAKE) -C $(TRAIN_CORPUS).$* submission
+
+%-eval : 
+	$(MAKE) -C $(TRAIN_CORPUS).$* eval
 
 # Training
 
@@ -89,7 +93,7 @@ $(TRAIN_CORPUS).tb.%/model/moses.ini : $(FACTORED_DEPS)
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
 		$(FACTORED_OPTS) \
 		--translation-factors $($(BASE_FACTOR)),$($*)-$($(BASE_FACTOR)),$($*) \
-		--lm $($*):3:$(abspath $(FACTOR_LM)) \
+		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
 		$(LOG_CMD)
 
 # Generic rule for an additional translation and alignment factor on the source side only
@@ -133,8 +137,8 @@ $(TRAIN_CORPUS).f_pos.backoff.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).po
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
 		$(FACTORED_OPTS) \
 		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR)),$(pos)+$($*)-$($(BASE_FACTOR)),$(pos) \
-		--lm $($*):3:$(abspath $(FACTOR_LM)) \
-		--lm $(pos):3:$(abspath $(LM_BASE).pos.$(LM_SUFFIX)) \
+		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
+		--lm $(pos):$(LM_ORDER):$(abspath $(LM_BASE).pos.$(LM_SUFFIX)) \
 		--decoding-steps t0:t1 \
 		$(LOG_CMD) 
 
@@ -144,7 +148,7 @@ $(TRAIN_CORPUS).tb.alt.gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(L
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
 		$(FACTORED_OPTS) \
 		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR))+$($*)-$($*) \
-		--lm $($*):3:$(abspath $(FACTOR_LM)) \
+		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
 		--generation-factors $($(BASE_FACTOR))-$($*) \
 		--decoding-steps t0,g0:t1 \
 		$(LOG_CMD) 
@@ -155,7 +159,7 @@ $(TRAIN_CORPUS).tb.alt.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SU
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
 		$(FACTORED_OPTS) \
 		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR)),$($*)+$($*)-$($(BASE_FACTOR)),$($*) \
-		--lm $($*):3:$(abspath $(FACTOR_LM)) \
+		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
 		--decoding-steps t0:t1 \
 		$(LOG_CMD)
 
@@ -166,7 +170,7 @@ $(TRAIN_CORPUS).gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFI
 		$(FACTORED_OPTS) \
 		--translation-factors $($*)-$($*) \
 		--generation-factors $($*)-$($(BASE_FACTOR)) \
-		--lm $($*):3:$(abspath $(FACTOR_LM)) \
+		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
 		$(LOG_CMD)
 
 # Complex models
