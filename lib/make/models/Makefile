@@ -87,6 +87,14 @@ $(TRAIN_CORPUS).unfactored/model/moses.ini : $(UNFACTORED_DEPS)
 		$(UNFACTORED_OPTS) \
 		$(LOG_CMD)
 
+# Alignment using only the given factor
+$(TRAIN_CORPUS).ao.%/model/moses.ini : $(FACTORED_DEPS) 
+	$(PRE_TRAIN_CMD)
+	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
+		$(FACTORED_OPTS) \
+		--alignment-factors $($*)-$($*) \
+		$(LOG_CMD)
+
 # Generic rule for an additional translation factor on both sides
 $(TRAIN_CORPUS).tb.%/model/moses.ini : $(FACTORED_DEPS) 
 	$(PRE_TRAIN_CMD)
