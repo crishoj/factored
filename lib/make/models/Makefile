@@ -95,6 +95,14 @@ $(TRAIN_CORPUS).ao.%/model/moses.ini : $(FACTORED_DEPS)
 		--alignment-factors $($*)-$($*) \
 		$(LOG_CMD)
 
+# Alternative FACTOR-FORM decoding path
+$(TRAIN_CORPUS).alt.%/model/moses.ini : $(FACTORED_DEPS) 
+	$(PRE_TRAIN_CMD)
+	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
+		$(FACTORED_OPTS) \
+		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR))+$($*)-$($(BASE_FACTOR)) \
+		$(LOG_CMD)
+
 # Generic rule for an additional translation factor on both sides
 $(TRAIN_CORPUS).tb.%/model/moses.ini : $(FACTORED_DEPS) 
 	$(PRE_TRAIN_CMD)
@@ -149,63 +157,4 @@ $(TRAIN_CORPUS).f_pos.backoff.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).po
 		--lm $(pos):$(LM_ORDER):$(abspath $(LM_BASE).pos.$(LM_SUFFIX)) \
 		--decoding-steps t0:t1 \
 		$(LOG_CMD) 
-
-# An additional translation factor as an alternative decoding path, with generation
-$(TRAIN_CORPUS).tb.alt.gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(PRE_TRAIN_CMD)
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
-		$(FACTORED_OPTS) \
-		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR))+$($*)-$($*) \
-		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
-		--generation-factors $($(BASE_FACTOR))-$($*) \
-		--decoding-steps t0,g0:t1 \
-		$(LOG_CMD) 
-
-# An additional translation factor as an alternative decoding path
-$(TRAIN_CORPUS).tb.alt.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(PRE_TRAIN_CMD)
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
-		$(FACTORED_OPTS) \
-		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR)),$($*)+$($*)-$($(BASE_FACTOR)),$($*) \
-		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
-		--decoding-steps t0:t1 \
-		$(LOG_CMD)
-
-# Translate using a single factor (e.g. Brown clusters), then generate surface forms
-$(TRAIN_CORPUS).gen.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).%.$(LM_SUFFIX) 
-	$(PRE_TRAIN_CMD)
-	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
-		$(FACTORED_OPTS) \
-		--translation-factors $($*)-$($*) \
-		--generation-factors $($*)-$($(BASE_FACTOR)) \
-		--lm $($*):$(LM_ORDER):$(abspath $(FACTOR_LM)) \
-		$(LOG_CMD)
-
-# Complex models
-#$(TRAIN_CORPUS).combined/model/moses.ini : $(FACTORED_DEPS) $(FACTOR_LMS)
-#	$(PRE_TRAIN_CMD)
-#	$(TRAIN_CMD) --root-dir $(TRAIN_CORPUS).combined \
-#		$(FACTORED_OPTS) \
-#		--translation-factors $($(BASE_FACTOR)),$(lemma),$(pos),$(cluster),$(deprel),$(wsd)-$($(BASE_FACTOR)),$(lemma),$(pos),$(cluster),$(deprel),$(wsd) \
-#		$(LM_OPT_FACTORS) \
-#		$(LOG_CMD)
-#
-#$(TRAIN_CORPUS).gen_cluster/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.$(LM_SUFFIX) 
-#	$(PRE_TRAIN_CMD)
-#	$(TRAIN_CMD) --root-dir $(TRAIN_CORPUS).gen_cluster \
-#		$(FACTORED_OPTS) \
-#		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR))+$(cluster)-$(cluster) \
-#		--generation-factors $($(BASE_FACTOR))-$(cluster) \
-#		--decoding-steps t0,g0,t1 \
-#		$(LOG_CMD)
-#
-#$(TRAIN_CORPUS).gen_cluster_deprel/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).cluster.$(LM_SUFFIX) $(LM_BASE).deprel.$(LM_SUFFIX)
-#	$(PRE_TRAIN_CMD)
-#	$(TRAIN_CMD) --root-dir $(TRAIN_CORPUS).gen_cluster_deprel \
-#		$(FACTORED_OPTS) \
-#		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR))+$(deprel),$(cluster)-$(deprel),$(cluster) \
-#		--generation-factors $($(BASE_FACTOR))-$(deprel),$(cluster) \
-#		--decoding-steps t0,g0,t1 \
-#		$(LOG_CMD)
-
 
