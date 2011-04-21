@@ -44,7 +44,7 @@ TRAIN_CMD	= train-model.perl
 PRE_TRAIN_CMD	= mkdir -p $(@D) && \
 	cd $(dir $(@D)) && \
 	ln -fs ../../../lib/make/model/Makefile . && \
-	rm -f extract*.gz 
+	rm -f model/extract*.gz 
 
 # Testing
 MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(NONBASE_FACTORS))) 
