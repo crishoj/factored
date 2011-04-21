@@ -101,6 +101,7 @@ $(TRAIN_CORPUS).alt.%/model/moses.ini : $(FACTORED_DEPS)
 	$(TRAIN_CMD) --root-dir $(subst /model/moses.ini,,$@) \
 		$(FACTORED_OPTS) \
 		--translation-factors $($(BASE_FACTOR))-$($(BASE_FACTOR))+$($*)-$($(BASE_FACTOR)) \
+		--decoding-steps t0:t1 \
 		$(LOG_CMD)
 
 # Generic rule for an additional translation factor on both sides
