@@ -41,13 +41,11 @@ MOSES_OPTS	= -f $(L1) -e $(L2) -alignment grow-diag-final-and -reordering msd-bi
 UNFACTORED_OPTS	= $(MOSES_OPTS) -corpus $(UNFACTORED_TRAIN)
 FACTORED_OPTS 	= $(MOSES_OPTS) -corpus $(FACTORED_TRAIN) -input-factor-max $(FACTOR_MAX) 
 TRAIN_CMD	= train-model.perl
-PRE_TRAIN_CMD	= mkdir -p $(@D) && \
-	cd $(dir $(@D)) && \
-	ln -fs ../../../lib/make/model/Makefile . && \
-	rm -f model/extract*.gz 
+PRE_TRAIN_CMD	= rm -rf $(dir $(@D)) && mkdir -p $(@D) && cd $(dir $(@D)) && \
+	ln -fs ../../../lib/make/model/Makefile . 
 
 # Testing
-MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(NONBASE_FACTORS))) 
+MODEL_CONFIGS 	= $(foreach FACTOR_CONFIG, $(FACTOR_CONFIGS), $(addprefix $(FACTOR_CONFIG)., $(ENABLED_FACTORS))) 
 MODEL_NAMES	= unfactored $(MODEL_CONFIGS) # combined # gen_cluster gen_cluster_deprel
 MODEL_DIRS	= $(addprefix $(TRAIN_CORPUS)., $(MODEL_NAMES))
 MODELS		= $(addsuffix /model/moses.ini, $(MODEL_DIRS)) 
