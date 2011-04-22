@@ -29,6 +29,7 @@ include $(BASE)/lib/make/common.mk
 # Mert
 MERT_OPTS 	= --mertdir=$(MERT_DIR)
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
+FILTER_CMD	= $(MOSES_SCRIPTS)/training/filter-model-given-input.pl -Binarizer processPhraseTable
 
 submission : $(TEST_CORPUS).optimized.out.sgm 
 	echo "Made $^"
@@ -51,7 +52,7 @@ model/phrase-tab%.binphr.idx : model/phrase-tab%.gz
 #
 model.optimized/moses.ini : model/moses.binarized.ini $(DEV).$(L1) $(DEV).$(L2)
 	mkdir -p $(@D)
-	$(MERT_CMD) --working-dir=model.optimized $(DEV).$(L1) $(DEV).$(L2) $(MOSES) $< $(LOG_CMD)
+	$(MERT_CMD) --working-dir=model.optimized --filtercmd="$(FILTER_CMD)" $(DEV).$(L1) $(DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
 #
 # Filtering
