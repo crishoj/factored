@@ -52,6 +52,7 @@ model/phrase-tab%.binphr.idx : model/phrase-tab%.gz
 #
 model.optimized/moses.ini : model/moses.binarized.ini $(DEV).$(L1) $(DEV).$(L2)
 	mkdir -p $(@D)
+	rm -rf $(@D)/filtered
 	$(MERT_CMD) --working-dir=model.optimized --filtercmd="$(FILTER_CMD)" $(DEV).$(L1) $(DEV).$(L2) $(MOSES) $< $(LOG_CMD)
 
 #
