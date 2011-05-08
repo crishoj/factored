@@ -27,10 +27,12 @@ OL		?= @L2@
 FACTOR_CONFIGS 	?= ao ts tb # as.ts backoff f_pos.backoff # tb.alt.gen # tb.alt # 
 BASE_FACTOR	?= lowercase
 NONBASE_FACTORS	?= cluster100 cluster320 cluster1000 unsupos # pos cluster deprel wsd lemma
-FACTORS 	:= $(BASE_FACTOR) $(NONBASE_FACTORS)
+ENABLED_FACTORS ?= cluster320 cluster1000 unsupos
+FACTORS 	:= $(BASE_FACTOR) $(ENABLED_FACTORS)
+ALL_FACTORS 	:= $(BASE_FACTOR) $(NONBASE_FACTORS)
 FACTOR_FILES	?= $(foreach FACTOR, $(FACTORS), %.$(FACTOR).$(L))
 factor_i	:= # factor counter
-$(foreach factor,$(FACTORS), $(eval $(factor):=$(words $(factor_i))) $(eval factor_i+=x)) # enumerate factors
+$(foreach factor,$(ALL_FACTORS), $(eval $(factor):=$(words $(factor_i))) $(eval factor_i+=x)) # enumerate factors
 FACTOR_MAX	:= $(words $(NONBASE_FACTORS))
 
 # Paths
