@@ -8,6 +8,8 @@ require 'commander/import'
 program :version, '0.1'
 program :description, 'Assist in translation factor juggling.'
 
+default_command :help
+
 command :split do |c|
   c.syntax = 'factor split CORPUS'
   c.description = 'Split a factored corpus into separate, unfactored corpora'
