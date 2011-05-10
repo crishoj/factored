@@ -26,6 +26,8 @@ endif
 include $(BASE)/standard_defs.mk
 include $(BASE)/lib/make/common.mk
 
+REFERENCE	= $(CORPUS_DIR)/test/$(TEST_CORPUS).$(BASE_FACTOR).$(L2)
+
 # Mert
 MERT_OPTS 	= --mertdir=$(MERT_DIR)
 MERT_CMD	= mert-moses.pl $(MERT_OPTS)
@@ -34,7 +36,10 @@ FILTER_CMD	= $(MOSES_SCRIPTS)/training/filter-model-given-input.pl -Binarizer pr
 submission : $(TEST_CORPUS).optimized.out.sgm 
 	echo "Made $^"
 
-eval : $(TEST_CORPUS).optimized.out.bleu 
+eval : $(TEST_CORPUS).optimized.out.bleu $(TEST_CORPUS).optimized.oracle.out.bleu
+	head $^
+	
+sgm-eval : $(TEST_CORPUS).optimized.out.sgm.bleu 
 	head $^
 
 #
@@ -93,9 +98,10 @@ $(TEST_CORPUS).%.out.sgm.bleu : $(TEST_CORPUS).%.out.sgm
 	$(MTEVAL) -r $(DATA)/test/$(TEST_CORPUS)-src.$(L2).sgm -s $(DATA)/test/$(TEST_CORPUS)-src.$(L1).sgm -t $< -c -b
 
 $(TEST_CORPUS).%.out.bleu : $(TEST_CORPUS).%.out
-	$(MOSES_SCRIPTS)/generic/multi-bleu.perl $(CORPUS_DIR)/test/$(TEST_CORPUS).$(BASE_FACTOR).$(L2) < $< > $@ 
+	$(MULTI_BLEU) $(REFERENCE) < $< > $@ 
+
+$(TEST_CORPUS).%.oracle.out : $(TEST_CORPUS).%.out ../$(TRAIN_CORPUS).unfactored/$(TEST_CORPUS).%.out 
+	$(BASE)/bin/smt oracle --trace --multi-bleu $(MULTI_BLEU) --reference $(REFERENCE) $^ > $@
 
 %.test.out.meteor : %.test.out
 	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(TEST).$(L2) -l $(L2) > $@
-
-

@@ -65,6 +65,17 @@ models : $(OPTIMIZED_MODELS)
 submissions : $(foreach MODEL_NAME, $(MODEL_NAMES), $(MODEL_NAME)-submission)
 
 evals : $(foreach MODEL_NAME, $(MODEL_NAMES), $(MODEL_NAME)-eval)
+	
+# Oracle testing 
+
+oracle : $(TEST_CORPUS).combined-oracle.out.bleu
+	head $<
+
+$(TEST_CORPUS).combined-oracle.out : $(addsuffix /$(TEST_CORPUS).optimized.out, $(MODEL_DIRS)) 
+	$(BASE)/bin/smt oracle --trace --multi-bleu $(MULTI_BLEU) --reference $(CORPUS_DIR)/test/$(TEST_CORPUS).$(BASE_FACTOR).$(L2) $^ > $@
+
+$(TEST_CORPUS).combined-oracle.out.bleu : $(TEST_CORPUS).combined-oracle.out
+	$(MULTI_BLEU) $(CORPUS_DIR)/test/$(TEST_CORPUS).$(BASE_FACTOR).$(L2) < $< > $@ 
 
 # Shorthand
 
@@ -156,4 +167,3 @@ $(TRAIN_CORPUS).f_pos.backoff.%/model/moses.ini : $(FACTORED_DEPS) $(LM_BASE).po
 		--lm $(pos):$(LM_ORDER):$(abspath $(LM_BASE).pos.$(LM_SUFFIX)) \
 		--decoding-steps t0:t1 \
 		$(LOG_CMD) 
-

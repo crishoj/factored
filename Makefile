@@ -31,6 +31,7 @@ models : $(foreach PAIR, $(PAIRS), $(PAIR)-models)
 model-dirs : $(foreach PAIR, $(PAIRS), models/$(PAIR))
 submissions : $(foreach PAIR, $(PAIRS), $(PAIR)-submissions)
 evals : $(foreach PAIR, $(PAIRS), $(PAIR)-eval)
+oracles : $(foreach PAIR, $(PAIRS), $(PAIR)-oracle)
 
 %-lm : 
 	L=$* $(MAKE) -C $(MONO) lms
@@ -70,6 +71,9 @@ $(CORPUS_DIR)/%.$(L2) :
 
 %-eval : models/% 
 	$(MAKE) -C models/$* evals
+
+%-oracle : models/% 
+	$(MAKE) -C models/$* oracle
 
 models/% : 
 	mkdir -p $@

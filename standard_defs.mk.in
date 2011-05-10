@@ -51,6 +51,7 @@ MERT_DIR	= @MERT_DIR@
 
 # Evaluation
 MTEVAL		:= $(shell which mteval-v11b.pl)
+MULTI_BLEU      = $(MOSES_SCRIPTS)/generic/multi-bleu.perl
 
 # Logging
 LOG_INIT_CMD	= mkdir -p $(shell dirname $@)

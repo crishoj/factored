@@ -1,0 +1,88 @@
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+
+require 'commander/import'
+require 'set'
+require 'tempfile'
+
+program :version, '0.1'
+program :description, 'Tool belt for SMT experiments.'
+
+default_command :help
+
+command :gather_scores do |c|
+  c.syntax = 'smt gather_scores BLEU1, BLEU2 [, ...]'
+  c.description = 'Collect BLEU scores and gather them in a table'
+  c.action do |args, options| 
+    pairs = {}
+    configs = Set.new
+    args.each do |bleu_path|
+      parts = File.dirname(bleu_path).split('/')
+      config = parts.pop
+      configs << config
+      pair = parts.pop
+      score = File.open(bleu_path).readline.split(/[= ,\/]+/)[1].to_f
+      pairs[pair] ||= {} 
+      pairs[pair][config] = score
+    end
+    configs = configs.sort
+    puts ','+configs.join(',')
+    pairs.each_pair do |pair,scores| 
+      puts pair + ',' + configs.collect { |config| scores[config] }.join(',')
+    end
+  end
+end
+
+command :oracle do |c|
+  c.syntax = 'smt oracle --reference REF_FILE SYSTEM1, SYSTEM2 [, ...]'
+  c.description = 'For each sentence, pick the best-scoring output among several systems.'
+  c.option '--reference FILE', 'File containing reference translations'
+  c.option '--multi-bleu SCRIPT', 'Tool to use for scoring'
+  c.action do |args, options|
+    fail "Missing multi-bleu script" unless options.multi_bleu
+    fail "Missing reference file" unless options.reference
+    ref_sent_file = Tempfile.new(['ref', '.txt'])
+    sys_sent_file = Tempfile.new(['sys', '.txt'])
+    warn "Temp file for ref: #{ref_sent_file.path}" if $VERBOSE
+    warn "Temp file for sys: #{sys_sent_file.path}" if $VERBOSE
+    sys_outputs = args.collect { |f| File.open(f) }
+    selects = Hash.new(0)
+    File.foreach(options.reference) do |ref_sent|
+      ref_sent_file.rewind
+      ref_sent_file.truncate(0)
+      ref_sent_file << ref_sent
+      ref_sent_file.flush
+      ref_len = ref_sent.split(' ').length
+      best_score = 0
+      best_sent = ''
+      best_system = ''
+      sys_outputs.each do |system_output|
+        sys_sent = system_output.readline
+        warn "Translation: #{sys_sent}" if $VERBOSE
+        sys_sent_file.rewind
+        sys_sent_file.truncate(0)
+        sys_sent_file << sys_sent
+        sys_sent_file.flush
+        sys_len = sys_sent.split(' ').length
+        cmd = "#{options.multi_bleu} #{ref_sent_file.path} < #{sys_sent_file.path}"
+        warn "CMD: #{cmd}" if $VERBOSE
+        output = `#{cmd}`
+        ngram_scores = output.split(/[= ,\/]+/)[2..5].map(&:to_f)
+        warn "ngram_scores: #{ngram_scores}" if $VERBOSE
+        penalty = sys_len < ref_len ? Math.exp(1.0 - ref_len.to_f/sys_len.to_f) : 1.0
+        warn "ref_len: #{ref_len}, sys_len: #{sys_len}, penalty: #{penalty}" if $VERBOSE
+        score = ngram_scores.collect { |val| val > 0 ? Math.log(val) : 0 }.inject(0, :+)
+        score = penalty * score
+        warn "score: #{score}\n" if $VERBOSE
+        if score >= best_score
+          best_score = score
+          best_system = system_output.path
+          best_sent = sys_sent
+        end
+      end
+      selects[best_system] += 1
+      puts best_sent
+    end
+    warn selects
+  end
+end
