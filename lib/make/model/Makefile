@@ -112,5 +112,5 @@ eval-by-% : $(TEST_CORPUS).optimized.out.groups/%
 $(TEST_CORPUS).optimized.out.groups/% : $(REFERENCE) $(TEST_CORPUS).optimized.out $(TEST_CORPUS).optimized.out.log
 	$(BASE)/bin/smt group --by=$* $^
 	for output in $@/*.out ; do \
-	    $(MULTI_BLEU) $${output%.out}.ref < $${output} > $${output}.bleu ; \
+	    $(MULTI_BLEU) $${output%.out}.ref < $$output > $$output.bleu ; \
 	done ;
