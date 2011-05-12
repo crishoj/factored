@@ -86,3 +86,93 @@ command :oracle do |c|
     warn selects
   end
 end
+
+command :group do |c|
+  c.syntax = 'smt group --by=WHAT REF OUTPUT LOG'
+  c.description = 'Group sentences by various properties, e.g. number of unknown words, extracted from the translation log'
+  c.option '--by=WHAT', String, 'Discriminating property: unk, ...'
+  c.action do |args, options|
+    group_dir = "#{args[1]}.groups"
+    ref_sents = File.new(args.shift).each
+    out_sents = File.new(args.shift).each
+    log = SMT::Log.new(args.shift)
+    Dir.mkdir(group_dir) unless Dir.exists? group_dir
+    group_dir += "/#{options.by}"
+    fail "Group dir #{group_dir} exists" if Dir.exists? group_dir
+    Dir.mkdir(group_dir)
+    ref_group_files = {}
+    out_group_files = {}
+    log.each do |r|
+      group_name = case options.by
+      when 'unk'
+        r.unknown_word_penalty < -1 ? 'unknowns' : 'no-unknowns'
+      when 'unk-penalty'
+        (0-r.unknown_word_penalty).to_i.to_s
+      else
+        fail "Don't know how to discriminate by '#{options.by}'"
+      end
+      unless out_group_files[group_name]
+        out_group_filename = "#{group_dir}/#{group_name}.out"
+        ref_group_filename = "#{group_dir}/#{group_name}.ref"
+        warn "Creating group files #{out_group_filename} and #{ref_group_filename} for group #{group_name}"
+        out_group_files[group_name] = File.new(out_group_filename, 'w')
+        ref_group_files[group_name] = File.new(ref_group_filename, 'w')
+      end
+      out_group_files[group_name] << out_sents.next
+      ref_group_files[group_name] << ref_sents.next
+    end
+  end
+end
+
+module SMT
+  class Log
+    attr_reader :header
+    def initialize(filename = '')
+      @filename = filename
+      @header = iterator.first
+      yield self if block_given?
+      self
+    end
+    def iterator
+      File.new(@filename).each("\nTranslating: ")
+    end
+    def each 
+      records = iterator
+      records.next # header
+      records.each { |r| yield LogRecord.new(r) }
+    end
+  end
+  class LogRecord
+    def initialize(str) 
+      lines = str.lines
+      @input = lines.next.chomp
+      re = /^BEST TRANSLATION: /
+      line = lines.next.chomp
+      line = lines.next.chomp until line.match(re)
+      @output = line.sub(re, '')
+
+      re = / *<<([-0-9., ]+)>> *$/
+      @scores = @output.match(re)[1].split(', ').map(&:to_f)
+      @output.sub!(re, '')
+
+      re = / *\[total=([-0-9.]+)\] *$/
+      @log_probability = @output.match(re)[1].to_f
+      @output.sub!(re, '')
+      
+      re = / *\[([01]+)\] *$/
+      @coverage = @output.match(re)[1].split('').collect { |s| s == '1' }
+      @output.sub!(re, '')
+    end
+    def to_s
+      puts "Input:\n#{@input}"
+      puts "Output:\n#{@output}"
+      puts "Scores:\n#{@scores}"
+      puts "Unknown word penalty\n#{unknown_word_penalty}"
+      puts "Log probability:\n#{@log_probability}"
+      puts "Coverage:\n#{@coverage}"
+    end
+    def unknown_word_penalty
+      @scores[2]
+    end
+  end
+end
