@@ -38,7 +38,7 @@ submission : $(TEST_CORPUS).optimized.out.sgm
 
 eval : $(TEST_CORPUS).optimized.out.bleu $(TEST_CORPUS).optimized.oracle.out.bleu
 	head $^
-	
+
 sgm-eval : $(TEST_CORPUS).optimized.out.sgm.bleu 
 	head $^
 
