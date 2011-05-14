@@ -18,9 +18,10 @@ command :gather_scores do |c|
     configs = Set.new
     args.each do |bleu_path|
       parts = File.dirname(bleu_path).split('/')
-      config = parts.pop
+      parts.shift
+      pair = parts.shift
+      config = parts.shift
       configs << config
-      pair = parts.pop
       score = File.open(bleu_path).readline.split(/[= ,\/]+/)[1].to_f
       pairs[pair] ||= {} 
       pairs[pair][config] = score
@@ -64,7 +65,7 @@ command :oracle do |c|
         sys_sent_file << sys_sent
         sys_sent_file.flush
         sys_len = sys_sent.split(' ').length
-        cmd = "#{options.multi_bleu} #{ref_sent_file.path} < #{sys_sent_file.path}"
+        cmd = "#{options.multi_bleu} #{ref_sent_file.path} < #{sys_sent_file.path} 2> /dev/null"
         warn "CMD: #{cmd}" if $VERBOSE
         output = `#{cmd}`
         ngram_scores = output.split(/[= ,\/]+/)[2..5].map(&:to_f)
