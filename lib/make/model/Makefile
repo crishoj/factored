@@ -107,10 +107,11 @@ $(TEST_CORPUS).%.oracle.out : $(TEST_CORPUS).%.out ../$(TRAIN_CORPUS).unfactored
 	java -XX:+UseCompressedOops -Xmx2G -jar /opt/meteor/meteor-1.2.jar $< $(TEST).$(L2) -l $(L2) > $@
 
 eval-by-% : $(TEST_CORPUS).optimized.out.groups/%
+	wc -l $</*.out
 	head $</*.out.bleu
 
 $(TEST_CORPUS).optimized.out.groups/% : $(REFERENCE) $(TEST_CORPUS).optimized.out $(TEST_CORPUS).optimized.out.log
 	$(BASE)/bin/smt group --by=$* $^
 	for output in $@/*.out ; do \
-	    $(MULTI_BLEU) $${output%.out}.ref < $$output > $$output.bleu ; \
+		$(MULTI_BLEU) $${output%.out}.ref < $$output > $$output.bleu ; \
 	done ;
