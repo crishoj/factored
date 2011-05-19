@@ -125,6 +125,37 @@ command :group do |c|
   end
 end
 
+command :pick do |c|
+  c.syntax = 'smt pick --by=WHAT OUTPUT1 OUTPUT2 LOG'
+  c.description = 'Pick translations from different models based on various properties of the sentence, e.g. number of unknown words (as extracted from the translation log)'
+  c.option '--by=WHAT', String, 'Discriminating property: unk, ...'
+  c.action do |args, options|
+    out1_sents = File.new(args.shift).each
+    out2_sents = File.new(args.shift).each
+    log = SMT::Log.new(args.shift)
+    selects = Hash.new(0)
+    log.each do |r|
+      case options.by
+      when 'unk'
+        if r.unknown_word_penalty < -1 
+          # unknowns
+          out1_sents.next
+          print out2_sents.next
+          selects['unfactored'] += 1
+        else
+          # no unknowns
+          print out1_sents.next
+          out2_sents.next
+          selects['factored'] += 1
+        end
+      else
+        fail "Don't know how to discriminate by '#{options.by}'"
+      end
+    end
+    warn selects
+  end
+end
+
 module SMT
   class Log
     attr_reader :header
