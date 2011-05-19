@@ -115,3 +115,10 @@ $(TEST_CORPUS).optimized.out.groups/% : $(REFERENCE) $(TEST_CORPUS).optimized.ou
 	for output in $@/*.out ; do \
 		$(MULTI_BLEU) $${output%.out}.ref < $$output > $$output.bleu ; \
 	done ;
+
+#
+# Maintenance 
+#
+
+trim :
+	rm -rf giza.$(L1)-$(L2) giza.$(L2)-$(L1) corpus model/extract.* model/aligned.*
