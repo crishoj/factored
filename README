@@ -1,11 +1,18 @@
 
 Makefile-based pipeline for factored MT experiments
 
-OBJECTIVE: Let GNU's make handle the dependency chain for
-constructing and runnings experiments on factored MT corpora,
-including updating files when their dependencies have been
-updated with newer versions, as well as taking care of
-which subprocesses may be run in parallel.
+OBJECTIVE
 
-AUTHOR: crjensen@hum.ku.dk
+    Let GNU's make handle the dependency chain for
+    constructing and runnings experiments on factored MT corpora,
+    including updating files when their dependencies have been
+    updated with newer versions, as well as taking care of
+    which subprocesses may be run in parallel.
 
+AUTHOR
+
+    crjensen@hum.ku.dk
+
+USAGE
+
+    TODO
