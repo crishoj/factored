@@ -15,10 +15,6 @@ BASE		= .
 include standard_defs.mk
 include lib/gmsl
 
-#
-# Corpus stuff
-#
-
 .PHONY: all 
 
 all : lms corpora models recasers
